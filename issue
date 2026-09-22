@@ -1,0 +1,114 @@
+[root@prbhvspngprb central-monitoring]# oc get po
+NAME                                  READY   STATUS    RESTARTS   AGE
+kube-state-metrics-768cd469b5-ddsmv   1/1     Running   0          25m
+node-exporter-4jjqw                   0/1     Pending   0          67s
+node-exporter-95z8q                   0/1     Pending   0          67s
+node-exporter-9sz5v                   0/1     Pending   0          67s
+node-exporter-f74pv                   0/1     Pending   0          67s
+node-exporter-fzg7w                   0/1     Pending   0          67s
+node-exporter-qmz6t                   0/1     Pending   0          67s
+node-exporter-snx6r                   0/1     Pending   0          67s
+prometheus-thanos-75845b94f8-xnkvt    2/2     Running   0          29m
+[root@prbhvspngprb central-monitoring]# oc describe ds node-exporter
+Name:           node-exporter
+Selector:       app=node-exporter
+Node-Selector:  <none>
+Labels:         app=node-exporter
+Annotations:    deprecated.daemonset.template.generation: 2
+Desired Number of Nodes Scheduled: 7
+Current Number of Nodes Scheduled: 7
+Number of Nodes Scheduled with Up-to-date Pods: 7
+Number of Nodes Scheduled with Available Pods: 0
+Number of Nodes Misscheduled: 0
+Pods Status:  0 Running / 7 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:           app=node-exporter
+  Annotations:      kubectl.kubernetes.io/restartedAt: 2026-09-22T13:09:29Z
+  Service Account:  node-exporter
+  Containers:
+   node-exporter:
+    Image:      quay.io/prometheus/node-exporter:v1.8.2
+    Port:       9100/TCP
+    Host Port:  9100/TCP
+    Args:
+      --path.rootfs=/host
+      --web.listen-address=:9100
+    Environment:  <none>
+    Mounts:
+      /host from root (ro)
+  Volumes:
+   root:
+    Type:          HostPath (bare host directory volume)
+    Path:          /
+    HostPathType:  Directory
+  Node-Selectors:  <none>
+  Tolerations:     op=Exists
+Events:
+  Type     Reason            Age                   From                  Message
+  ----     ------            ----                  ----                  -------
+  Warning  FailedCreate      8m29s (x21 over 29m)  daemonset-controller  Error creating: pods "node-exporter-" is forbidden: unable to validate against any security context constraint: [provider "pngprd-scc": Forbidden: not usable by user or serviceaccount, provider "anyuid": Forbidden: not usable by user or serviceaccount, provider restricted-v2: .spec.securityContext.hostNetwork: Invalid value: true: Host network is not allowed to be used, provider restricted-v2: .spec.securityContext.hostPID: Invalid value: true: Host PID is not allowed to be used, spec.volumes[0]: Invalid value: "hostPath": hostPath volumes are not allowed to be used, provider restricted-v2: .containers[0].privileged: Invalid value: true: Privileged containers are not allowed, provider restricted-v2: .containers[0].hostNetwork: Invalid value: true: Host network is not allowed to be used, provider restricted-v2: .containers[0].containers[0].hostPort: Invalid value: 9100: Host ports are not allowed to be used, provider restricted-v2: .containers[0].hostPID: Invalid value: true: Host PID is not allowed to be used, provider "restricted": Forbidden: not usable by user or serviceaccount, provider "nonroot-v2": Forbidden: not usable by user or serviceaccount, provider "nonroot": Forbidden: not usable by user or serviceaccount, provider "hostmount-anyuid": Forbidden: not usable by user or serviceaccount, provider "trident-controller": Forbidden: not usable by user or serviceaccount, provider "logging-scc": Forbidden: not usable by user or serviceaccount, provider "machine-api-termination-handler": Forbidden: not usable by user or serviceaccount, provider "hostnetwork-v2": Forbidden: not usable by user or serviceaccount, provider "hostnetwork": Forbidden: not usable by user or serviceaccount, provider "hostaccess": Forbidden: not usable by user or serviceaccount, provider "trident-node-linux": Forbidden: not usable by user or serviceaccount, provider "node-exporter": Forbidden: not usable by user or serviceaccount, provider "privileged": Forbidden: not usable by user or serviceaccount]
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-qmz6t
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-fzg7w
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-f74pv
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-9sz5v
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-4jjqw
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-95z8q
+  Normal   SuccessfulCreate  74s                   daemonset-controller  Created pod: node-exporter-snx6r
+[root@prbhvspngprb central-monitoring]# oc describe po node-exporter-snx6r
+Name:             node-exporter-snx6r
+Namespace:        central-monitoring
+Priority:         0
+Service Account:  node-exporter
+Node:             <none>
+Labels:           app=node-exporter
+                  controller-revision-hash=84c5dc6db8
+                  pod-template-generation=2
+Annotations:      kubectl.kubernetes.io/restartedAt: 2026-09-22T13:09:29Z
+                  openshift.io/scc: privileged
+Status:           Pending
+IP:
+IPs:              <none>
+Controlled By:    DaemonSet/node-exporter
+Containers:
+  node-exporter:
+    Image:      quay.io/prometheus/node-exporter:v1.8.2
+    Port:       9100/TCP
+    Host Port:  9100/TCP
+    Args:
+      --path.rootfs=/host
+      --web.listen-address=:9100
+    Environment:  <none>
+    Mounts:
+      /host from root (ro)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-hcf8j (ro)
+Conditions:
+  Type           Status
+  PodScheduled   False
+Volumes:
+  root:
+    Type:          HostPath (bare host directory volume)
+    Path:          /
+    HostPathType:  Directory
+  kube-api-access-hcf8j:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+    ConfigMapName:           openshift-service-ca.crt
+    ConfigMapOptional:       <nil>
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 op=Exists
+                             node.kubernetes.io/disk-pressure:NoSchedule op=Exists
+                             node.kubernetes.io/memory-pressure:NoSchedule op=Exists
+                             node.kubernetes.io/network-unavailable:NoSchedule op=Exists
+                             node.kubernetes.io/not-ready:NoExecute op=Exists
+                             node.kubernetes.io/pid-pressure:NoSchedule op=Exists
+                             node.kubernetes.io/unreachable:NoExecute op=Exists
+                             node.kubernetes.io/unschedulable:NoSchedule op=Exists
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  80s   default-scheduler  0/7 nodes are available: 1 node(s) didn't have free ports for the requested pod ports. preemption: 0/7 nodes are available: 1 No preemption victims found for incoming pod, 6 Preemption is not helpful for scheduling.
+[root@prbhvspngprb central-monitoring]#
