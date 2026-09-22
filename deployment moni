@@ -1,438 +1,4554 @@
+CENTRALIZED MONITORING – CLEAN REDEPLOYMENT 
+
+OpenShift Cluster
+
+  kube-state-metrics
+
+        |
+
+  Prometheus
+
+        |
+
+  Thanos Sidecar
+
+        |
+
+        v
+
+Central Bastion
+
+  MinIO <--> Thanos Store
+
+               |
+
+               v
+
+         Thanos Query
+
+               |
+
+               v
+
+            Grafana
+
+SETUP ON BASTION SERVER:
+
+Create required directories:
+
+mkdir -p /acmdev-etcd/minio
+
+mkdir -p /acmdev-etcd/grafana
+
+mkdir -p /acmdev-etcd/thanos
+
+chmod -R 755 /acmdev-etcd/minio /acmdev-etcd/grafana /acmdev-etcd/thanos
+
+chmod 777 /acmdev-etcd/Grafana
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ ls -lrth
+
+total 435M
+
+-rw-------. 1 nobody nobody  69K Sep 16 09:30 static_kuberesources_2026-09-16_063006.tar.gz
+
+-rw-------. 1 nobody nobody 433M Sep 16 09:30 snapshot_2026-09-16_063006.db
+
+drwxr-xr-x. 2 nobody nobody 4.0K Sep 16 12:43 minio
+
+drwxrwxrwx. 2 nobody nobody 4.0K Sep 16 12:43 grafana
+
+drwxr-xr-x. 2 nobody nobody 4.0K Sep 16 12:43 thanos
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Run MinIO container:
+
+podman run -d \
+
+  --name minio \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /acmdev-etcd/minio:/data \
+
+  -e MINIO_ROOT_USER=minioadmin \
+
+  -e MINIO_ROOT_PASSWORD='ABC@BANK#2026' \
+
+  quay.io/minio/minio:latest \
+
+  server /data --console-address ":9001"
+
+Verify MinIO:
+
+podman ps
+
+curl -i http://127.0.0.1:9000/minio/health/live
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman ps
+
+CONTAINER ID  IMAGE                       COMMAND               CREATED        STATUS        PORTS       NAMES
+
+b2cef42d1b5f  quay.io/minio/minio:latest  server /data --co...  8 seconds ago  Up 9 seconds              minio
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ curl -i http://127.0.0.1:9000/minio/health/live
+
+HTTP/1.1 200 OK
+
+Accept-Ranges: bytes
+
+Content-Length: 0
+
+Server: MinIO
+
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+Vary: Origin
+
+X-Amz-Id-2: dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8
+
+X-Amz-Request-Id: 18D5C3E598F6D5A2
+
+X-Content-Type-Options: nosniff
+
+X-Xss-Protection: 1; mode=block
+
+Date: Wed, 16 Sep 2026 09:43:37 GMT
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Install mc client if needed:
+
+mkdir -p ~/aistor-binaries
+
+curl --progress-bar -L https://dl.min.io/aistor/mc/release/linux-amd64/mc -o ~/aistor-binaries/mc
+
+chmod +x ~/aistor-binaries/mc
+
+ln -sf ~/aistor-binaries/mc /usr/local/bin/mc
+
+mc --version
+
+Configure MinIO alias and create bucket:
+
+mc alias set myminio http://10.150.210.109:9000 minioadmin 'ABC@BANK#2026'
+
+mc mb myminio/thanos-metrics
+
+mc ls myminio
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ mc alias set myminio http://10.150.210.109:9000 minioadmin 'ABC@BANK#2026'
+
+Added myminio successfully.
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ mc mb myminio/thanos-metrics
+
+Bucket created successfully myminio/thanos-metrics.
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ mc ls myminio
+
+[2026-09-16 12:44:17 +03]     0B thanos-metrics/
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Create Thanos object store config:
+
+cat > /acmdev-etcd/thanos/objstore.yml <<'EOF'
+
+type: S3
+
+config:
+
+  bucket: thanos-metrics
+
+  endpoint: 10.150.210.109:9000
+
+  access_key: minioadmin
+
+  secret_key: ABC@BANK#2026
+
+  insecure: true
+
+EOF
+
+chmod 755 /acmdev-etcd/thanos
+
+chmod 644 /acmdev-etcd/thanos/objstore.yml
+
+cat /acmdev-etcd/thanos/objstore.yml
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ cat > /acmdev-etcd/thanos/objstore.yml <<'EOF'
+
+EOF
+
+chmod 755 /acmdev-etcd/thanos
+
+chmod 644 /acmdev-etcd/thanos/objstore.yml
+
+cat /acmdev-etcd/thanos/objstore.yml> type: S3
+
+> config:
+
+>   bucket: thanos-metrics
+
+>   endpoint: 10.150.210.109:9000
+
+>   access_key: minioadmin
+
+>   secret_key: ABC@BANK#2026
+
+>   insecure: true
+
+> EOF
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ chmod 755 /acmdev-etcd/thanos
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ chmod 644 /acmdev-etcd/thanos/objstore.yml
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ cat /acmdev-etcd/thanos/objstore.yml
+
+type: S3
+
+config:
+
+  bucket: thanos-metrics
+
+  endpoint: 10.150.210.109:9000
+
+  access_key: minioadmin
+
+  secret_key: ABC@BANK#2026
+
+  insecure: true
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Run Grafana container:
+
+podman run -d \
+
+  --name grafana \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /acmdev-etcd/grafana:/var/lib/grafana \
+
+  -e GF_SECURITY_ADMIN_USER=admin \
+
+  -e GF_SECURITY_ADMIN_PASSWORD='ABC@BANK#2026' \
+
+  docker.io/grafana/grafana:latest
+
+If login fails later, reset password
+
+podman exec -it grafana grafana cli admin reset-admin-password 'ABC@BANK#2026'
+
+Verify Grafana
+
+podman ps
+
+curl -I http://127.0.0.1:3000
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman run -d \
+
+>   --name grafana \
+
+>   --network host \
+
+>   --security-opt label=disable \
+
+>   -v /acmdev-etcd/grafana:/var/lib/grafana \
+
+>   -e GF_SECURITY_ADMIN_USER=admin \
+
+>   -e GF_SECURITY_ADMIN_PASSWORD='ABC@BANK#2026' \
+
+>   docker.io/grafana/grafana:latest
+
+fd02ea069eb8aefd6f4e00b663494393ce1cd068ba283fe9a3b56a38825ec9f1
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman ps
+
+CONTAINER ID  IMAGE                             COMMAND               CREATED         STATUS         PORTS       NAMES
+
+b2cef42d1b5f  quay.io/minio/minio:latest        server /data --co...  18 minutes ago  Up 18 minutes              minio
+
+fd02ea069eb8  docker.io/grafana/grafana:latest                        59 seconds ago  Up 59 seconds              grafana
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ curl -I http://127.0.0.1:3000
+
+HTTP/1.1 302 Found
+
+Cache-Control: no-store
+
+Content-Type: text/html; charset=utf-8
+
+Location: /login
+
+X-Content-Type-Options: nosniff
+
+X-Frame-Options: deny
+
+X-Xss-Protection: 1; mode=block
+
+Date: Wed, 16 Sep 2026 10:02:02 GMT
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Run Thanos Store:
+
+podman run -d \
+
+  --name thanos-store \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /acmdev-etcd/thanos:/etc/thanos \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  store \
+
+  --data-dir=/tmp/thanos/store \
+
+  --objstore.config-file=/etc/thanos/objstore.yml \
+
+  --http-address=0.0.0.0:10906 \
+
+  --grpc-address=0.0.0.0:10905
+
+Verify Thanos Store
+
+podman ps
+
+curl http://127.0.0.1:10906/-/healthy
+
+curl http://127.0.0.1:10906/-/ready
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman run -d \
+
+  --security-opt label=disable \
+
+  -v /acmdev-etcd/thanos:/etc/thanos \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  store \
+
+  --data-dir=/tmp/thanos/store \
+
+  --objstore.config-file=/etc/thanos/objstore.yml \
+
+  --http-address=0.0.0.0:10906 \
+
+  --grpc-address=0.0.0.0:10905>   --name thanos-store \
+
+>   --network host \
+
+>   --security-opt label=disable \
+
+>   -v /acmdev-etcd/thanos:/etc/thanos \
+
+>   quay.io/thanos/thanos:v0.36.1 \
+
+>   store \
+
+>   --data-dir=/tmp/thanos/store \
+
+>   --objstore.config-file=/etc/thanos/objstore.yml \
+
+>   --http-address=0.0.0.0:10906 \
+
+>   --grpc-address=0.0.0.0:10905
+
+f0ead9b1d7541304f2274b954e42508e38a127968c5315fbb028032a04ebebd8
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman ps
+
+CONTAINER ID  IMAGE                             COMMAND               CREATED         STATUS         PORTS       NAMES
+
+b2cef42d1b5f  quay.io/minio/minio:latest        server /data --co...  19 minutes ago  Up 19 minutes              minio
+
+fd02ea069eb8  docker.io/grafana/grafana:latest                        2 minutes ago   Up 2 minutes               grafana
+
+f0ead9b1d754  quay.io/thanos/thanos:v0.36.1     store --data-dir=...  6 seconds ago   Up 6 seconds               thanos-store
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ curl http://127.0.0.1:10906/-/healthy
+
+OKroot@tsbahvsacmdevmg:/acmdev-etcd$ curl http://127.0.0.1:10906/-/ready
+
+OKroot@tsbahvsacmdevmg:/acmdev-etcd$
+
+Run Thanos Query:
+
+podman run -d \
+
+  --name thanos-query \
+
+  --network host \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  query \
+
+  --http-address=0.0.0.0:10902 \
+
+  --grpc-address=0.0.0.0:10901 \
+
+  --store=10.150.210.109:10905 \
+
+  --store=10.150.210.108:30901
+
+Verify Thanos Query
+
+podman ps
+
+curl http://127.0.0.1:10902/-/healthy
+
+podman logs thanos-query
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman run -d \
+
+>   --name thanos-query \
+
+>   --network host \
+
+>   quay.io/thanos/thanos:v0.36.1 \
+
+>   query \
+
+>   --http-address=0.0.0.0:10902 \
+
+>   --grpc-address=0.0.0.0:10901 \
+
+>   --store=10.150.210.109:10905 \
+
+>   --store=10.150.210.108:30901
+
+21d11321a4cc2268244874d16dfe07ba772817b845dded3995214176a310fb04
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ podman ps
+
+CONTAINER ID  IMAGE                             COMMAND               CREATED             STATUS             PORTS       NAMES
+
+b2cef42d1b5f  quay.io/minio/minio:latest        server /data --co...  21 minutes ago      Up 21 minutes                  minio
+
+fd02ea069eb8  docker.io/grafana/grafana:latest                        3 minutes ago       Up 3 minutes                   grafana
+
+f0ead9b1d754  quay.io/thanos/thanos:v0.36.1     store --data-dir=...  About a minute ago  Up About a minute              thanos-store
+
+21d11321a4cc  quay.io/thanos/thanos:v0.36.1     query --http-addr...  6 seconds ago       Up 7 seconds                   thanos-query
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ curl http://127.0.0.1:10902/-/healthy
+
+OKroot@tsbahvsacmdevmg:/acmdev-etcd$ podman logs thanos-query
+
+ts=2026-09-16T10:04:42.862735261Z caller=options.go:26 level=info protocol=gRPC msg="disabled TLS, key and cert must be set to enable"
+
+ts=2026-09-16T10:04:42.863396249Z caller=query.go:833 level=info msg="starting query node"
+
+ts=2026-09-16T10:04:42.863655599Z caller=intrumentation.go:75 level=info msg="changing probe status" status=healthy
+
+ts=2026-09-16T10:04:42.863685739Z caller=http.go:73 level=info service=http/server component=query msg="listening for requests and metrics" address=0.0.0.0:10902
+
+ts=2026-09-16T10:04:42.864254474Z caller=tls_config.go:313 level=info service=http/server component=query msg="Listening on" address=[::]:10902
+
+ts=2026-09-16T10:04:42.864277945Z caller=tls_config.go:316 level=info service=http/server component=query msg="TLS is disabled." http2=false address=[::]:10902
+
+ts=2026-09-16T10:04:42.864337485Z caller=intrumentation.go:56 level=info msg="changing probe status" status=ready
+
+ts=2026-09-16T10:04:42.864376024Z caller=grpc.go:167 level=info service=gRPC/server component=query msg="listening for serving gRPC" address=0.0.0.0:10901
+
+ts=2026-09-16T10:04:47.866787028Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.210.108:30901: connect: connection refused\"" address=10.150.210.108:30901
+
+ts=2026-09-16T10:04:47.866922838Z caller=endpointset.go:436 level=info component=endpointset msg="adding new store with [storeEndpoints]" address=10.150.210.109:10905 extLset=
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+DEPLOY MONITORING COMPONENTS IN OPENSHIFT:
+
+Save final OpenShift YAML:
+
+cat > demo-monitoring.yaml <<'EOF'
+
 apiVersion: v1
+
 kind: Namespace
+
 metadata:
-  name: central-monitoring
+
+  name: demo-monitoring
+
 ---
+
 apiVersion: v1
+
 kind: ServiceAccount
+
 metadata:
+
   name: kube-state-metrics
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
 ---
+
 apiVersion: v1
+
 kind: ServiceAccount
+
 metadata:
+
   name: prometheus
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
 ---
+
 apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: node-exporter
-  namespace: central-monitoring
----
-apiVersion: v1
+
 kind: Secret
+
 metadata:
+
   name: thanos-objstore-config
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
 type: Opaque
+
 stringData:
+
   objstore.yml: |
+
     type: S3
+
     config:
+
       bucket: thanos-metrics
-      endpoint: 10.150.195.135:9000
+
+      endpoint: 10.150.210.109:9000
+
       insecure: true
+
       access_key: minioadmin
-      secret_key: ABC@BANK2026
+
+      secret_key: ABC@BANK#2026
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
+
 kind: ClusterRole
+
 metadata:
-  name: central-monitoring-kube-state-metrics
+
+  name: demo-monitoring-kube-state-metrics
+
 rules:
+
   - apiGroups: [""]
+
     resources:
+
       - configmaps
+
       - secrets
+
       - nodes
+
       - pods
+
       - services
+
       - resourcequotas
+
       - replicationcontrollers
+
       - limitranges
+
       - persistentvolumeclaims
+
       - persistentvolumes
+
       - namespaces
+
       - endpoints
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["apps"]
+
     resources:
+
       - statefulsets
+
       - daemonsets
+
       - deployments
+
       - replicasets
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["batch"]
+
     resources:
+
       - cronjobs
+
       - jobs
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["autoscaling"]
+
     resources:
+
       - horizontalpodautoscalers
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["networking.k8s.io"]
+
     resources:
+
       - ingresses
+
       - networkpolicies
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["policy"]
+
     resources:
+
       - poddisruptionbudgets
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["storage.k8s.io"]
+
     resources:
+
       - storageclasses
+
       - volumeattachments
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["admissionregistration.k8s.io"]
+
     resources:
+
       - mutatingwebhookconfigurations
+
       - validatingwebhookconfigurations
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["coordination.k8s.io"]
+
     resources:
+
       - leases
+
     verbs: ["list", "watch"]
+
   - apiGroups: ["certificates.k8s.io"]
+
     resources:
+
       - certificatesigningrequests
+
     verbs: ["list", "watch"]
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
+
 kind: ClusterRoleBinding
+
 metadata:
-  name: central-monitoring-kube-state-metrics
+
+  name: demo-monitoring-kube-state-metrics
+
 roleRef:
+
   apiGroup: rbac.authorization.k8s.io
+
   kind: ClusterRole
-  name: central-monitoring-kube-state-metrics
+
+  name: demo-monitoring-kube-state-metrics
+
 subjects:
+
   - kind: ServiceAccount
+
     name: kube-state-metrics
-    namespace: central-monitoring
+
+    namespace: demo-monitoring
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
+
 kind: ClusterRole
+
 metadata:
-  name: central-monitoring-prometheus
+
+  name: demo-monitoring-prometheus
+
 rules:
+
   - apiGroups: [""]
+
     resources:
+
       - nodes
+
       - nodes/metrics
+
       - services
+
       - endpoints
+
       - pods
+
       - namespaces
-      - nodes/proxy
+
     verbs: ["get", "list", "watch"]
+
   - nonResourceURLs: ["/metrics"]
+
     verbs: ["get"]
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
+
 kind: ClusterRoleBinding
+
 metadata:
-  name: central-monitoring-prometheus
+
+  name: demo-monitoring-prometheus
+
 roleRef:
+
   apiGroup: rbac.authorization.k8s.io
+
   kind: ClusterRole
-  name: central-monitoring-prometheus
+
+  name: demo-monitoring-prometheus
+
 subjects:
+
   - kind: ServiceAccount
+
     name: prometheus
-    namespace: central-monitoring
+
+    namespace: demo-monitoring
+
 ---
+
 apiVersion: apps/v1
+
 kind: Deployment
+
 metadata:
+
   name: kube-state-metrics
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
   labels:
+
     app: kube-state-metrics
+
 spec:
+
   replicas: 1
+
   selector:
+
     matchLabels:
+
       app: kube-state-metrics
+
   template:
+
     metadata:
+
       labels:
+
         app: kube-state-metrics
+
     spec:
+
       serviceAccountName: kube-state-metrics
+
       containers:
+
         - name: kube-state-metrics
+
           image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+
           args:
+
             - --port=8080
+
           ports:
+
             - name: http-metrics
+
               containerPort: 8080
+
           readinessProbe:
+
             httpGet:
+
               path: /metrics
+
               port: http-metrics
+
             initialDelaySeconds: 5
+
             timeoutSeconds: 5
+
           livenessProbe:
+
             httpGet:
+
               path: /metrics
+
               port: http-metrics
+
             initialDelaySeconds: 15
+
             timeoutSeconds: 5
+
 ---
+
 apiVersion: v1
+
 kind: Service
+
 metadata:
+
   name: kube-state-metrics
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
   labels:
+
     app: kube-state-metrics
+
 spec:
+
   selector:
+
     app: kube-state-metrics
+
   ports:
+
     - name: http-metrics
+
       port: 8080
+
       targetPort: http-metrics
+
 ---
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: node-exporter
-  namespace: central-monitoring
-  labels:
-    app: node-exporter
-spec:
-  selector:
-    matchLabels:
-      app: node-exporter
-  template:
-    metadata:
-      labels:
-        app: node-exporter
-    spec:
-      serviceAccountName: node-exporter
-      hostNetwork: true
-      hostPID: true
-      tolerations:
-        - operator: Exists
-      containers:
-        - name: node-exporter
-          image: quay.io/prometheus/node-exporter:v1.8.2
-          args:
-            - --path.rootfs=/host
-            - --web.listen-address=:9100
-          ports:
-            - name: metrics
-              containerPort: 9100
-              hostPort: 9100
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - name: root
-              mountPath: /host
-              readOnly: true
-              mountPropagation: HostToContainer
-      volumes:
-        - name: root
-          hostPath:
-            path: /
-            type: Directory
----
+
 apiVersion: v1
-kind: Service
-metadata:
-  name: node-exporter
-  namespace: central-monitoring
-  labels:
-    app: node-exporter
-spec:
-  selector:
-    app: node-exporter
-  ports:
-    - name: metrics
-      port: 9100
-      targetPort: 9100
----
-apiVersion: v1
+
 kind: ConfigMap
+
 metadata:
+
   name: prometheus-config
-  namespace: central-monitoring
+
+  namespace: demo-monitoring
+
 data:
+
   prometheus.yml: |
+
     global:
+
       scrape_interval: 30s
+
       evaluation_interval: 30s
+
       external_labels:
+
+        cluster: demo-cluster
+
+    scrape_configs:
+
+      - job_name: 'kube-state-metrics'
+
+        static_configs:
+
+          - targets:
+
+              - kube-state-metrics.demo-monitoring.svc:8080
+
+        metric_relabel_configs:
+
+          - source_labels: [__name__]
+
+            regex: 'kube_node_status_condition|kube_pod_status_phase|kube_pod_status_ready|kube_pod_container_status_restarts_total|kube_pod_container_status_waiting_reason|kube_deployment_spec_replicas|kube_deployment_status_replicas_available|kube_statefulset_status_replicas_ready|kube_daemonset_status_number_ready|kube_job_status_failed'
+
+            action: keep
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: demo-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: prometheus-thanos
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: prometheus-thanos
+
+    spec:
+
+      serviceAccountName: prometheus
+
+      securityContext:
+
+        seccompProfile:
+
+          type: RuntimeDefault
+
+      containers:
+
+        - name: prometheus
+
+          image: quay.io/prometheus/prometheus:v2.54.1
+
+          args:
+
+            - --config.file=/etc/prometheus/prometheus.yml
+
+            - --storage.tsdb.path=/prometheus/data
+
+            - --storage.tsdb.min-block-duration=2h
+
+            - --storage.tsdb.max-block-duration=2h
+
+            - --web.enable-lifecycle
+
+          ports:
+
+            - name: http
+
+              containerPort: 9090
+
+          securityContext:
+
+            allowPrivilegeEscalation: false
+
+            runAsNonRoot: true
+
+            capabilities:
+
+              drop:
+
+                - ALL
+
+          volumeMounts:
+
+            - name: config
+
+              mountPath: /etc/prometheus
+
+            - name: data
+
+              mountPath: /prometheus
+
+        - name: thanos-sidecar
+
+          image: quay.io/thanos/thanos:v0.36.1
+
+          args:
+
+            - sidecar
+
+            - --tsdb.path=/prometheus/data
+
+            - --prometheus.url=http://localhost:9090
+
+            - --objstore.config-file=/etc/thanos/objstore.yml
+
+            - --grpc-address=0.0.0.0:10901
+
+            - --http-address=0.0.0.0:10902
+
+          ports:
+
+            - name: grpc
+
+              containerPort: 10901
+
+            - name: http-sidecar
+
+              containerPort: 10902
+
+          securityContext:
+
+            allowPrivilegeEscalation: false
+
+            runAsNonRoot: true
+
+            capabilities:
+
+              drop:
+
+                - ALL
+
+          volumeMounts:
+
+            - name: data
+
+              mountPath: /prometheus
+
+            - name: objstore-config
+
+              mountPath: /etc/thanos
+
+      volumes:
+
+        - name: config
+
+          configMap:
+
+            name: prometheus-config
+
+        - name: objstore-config
+
+          secret:
+
+            secretName: thanos-objstore-config
+
+        - name: data
+
+          emptyDir: {}
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: demo-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos-nodeport
+
+  namespace: demo-monitoring
+
+spec:
+
+  type: NodePort
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+      nodePort: 30901
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+      nodePort: 30902
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+      nodePort: 30090
+
+EOF
+
+Apply OpenShift YAML:
+
+oc apply -f demo-monitoring.yaml
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ oc apply -f demo-monitoring.yaml
+
+namespace/demo-monitoring created
+
+serviceaccount/kube-state-metrics created
+
+serviceaccount/prometheus created
+
+secret/thanos-objstore-config created
+
+clusterrole.rbac.authorization.k8s.io/demo-monitoring-kube-state-metrics configured
+
+clusterrolebinding.rbac.authorization.k8s.io/demo-monitoring-kube-state-metrics unchanged
+
+clusterrole.rbac.authorization.k8s.io/demo-monitoring-prometheus unchanged
+
+clusterrolebinding.rbac.authorization.k8s.io/demo-monitoring-prometheus unchanged
+
+deployment.apps/kube-state-metrics created
+
+service/kube-state-metrics created
+
+configmap/prometheus-config created
+
+deployment.apps/prometheus-thanos created
+
+service/prometheus-thanos created
+
+service/prometheus-thanos-nodeport created
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Verify OpenShift resources:
+
+oc get pods -n demo-monitoring
+
+oc get svc -n demo-monitoring
+
+oc get secret -n demo-monitoring
+
+oc get configmap -n demo-monitoring
+
+Output:
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ oc get pods -n demo-monitoring
+
+NAME                                  READY   STATUS    RESTARTS   AGE
+
+kube-state-metrics-7568d95499-5pbwz   1/1     Running   0          51s
+
+prometheus-thanos-85f689dc8d-g2l9g    2/2     Running   0          51s
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ oc get svc -n demo-monitoring
+
+NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                                          AGE
+
+kube-state-metrics           ClusterIP   172.30.113.30    <none>        8080/TCP                                         51s
+
+prometheus-thanos            ClusterIP   172.30.206.164   <none>        9090/TCP,10901/TCP,10902/TCP                     51s
+
+prometheus-thanos-nodeport   NodePort    172.30.100.35    <none>        10901:30901/TCP,10902:30902/TCP,9090:30090/TCP   51s
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ oc get secret -n demo-monitoring
+
+NAME                                 TYPE                                  DATA   AGE
+
+builder-dockercfg-q2tpl              kubernetes.io/dockercfg               1      51s
+
+builder-token-nmrx8                  kubernetes.io/service-account-token   4      51s
+
+default-dockercfg-5585n              kubernetes.io/dockercfg               1      51s
+
+default-token-j59rn                  kubernetes.io/service-account-token   4      51s
+
+deployer-dockercfg-5mfp8             kubernetes.io/dockercfg               1      51s
+
+deployer-token-qxhcr                 kubernetes.io/service-account-token   4      51s
+
+kube-state-metrics-dockercfg-6zgc7   kubernetes.io/dockercfg               1      51s
+
+kube-state-metrics-token-826sf       kubernetes.io/service-account-token   4      51s
+
+prometheus-dockercfg-qqvlt           kubernetes.io/dockercfg               1      51s
+
+prometheus-token-jld44               kubernetes.io/service-account-token   4      51s
+
+thanos-objstore-config               Opaque                                1      51s
+
+root@tsbahvsacmdevmg:/acmdev-etcd$ oc get configmap -n demo-monitoring
+
+NAME                       DATA   AGE
+
+kube-root-ca.crt           1      52s
+
+openshift-service-ca.crt   1      52s
+
+prometheus-config          1      52s
+
+root@tsbahvsacmdevmg:/acmdev-etcd$
+
+Expected:
+
+kube-state-metrics Running
+
+prometheus-thanos 2/2 Running
+
+CONNECT CENTRAL THANOS QUERY TO CLUSTER SIDECAR
+
+Verify sidecar NodePort endpoint
+
+10.150.210.108
+
+oc get svc -n demo-monitoring
+
+Expected NodePorts:
+
+30901
+
+30902
+
+30090
+
+Recreate Thanos Query if needed:
+
+podman rm -f thanos-query
+
+podman run -d \
+
+  --name thanos-query \
+
+  --network host \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  query \
+
+  --http-address=0.0.0.0:10902 \
+
+  --grpc-address=0.0.0.0:10901 \
+
+  --store=10.150.210.109:10905 \
+
+  --store=10.150.210.108:30901
+
+curl http://127.0.0.1:10902/-/healthy
+
+podman logs thanos-query
+
+GRAFANA CONFIGURATION
+
+Open Grafana
+
+http://10.150.210.109:3000
+
+Add Thanos Query as datasource:
+
+Path: Connections>Data sources>Add data source>Prometheus
+
+Use:
+
+Name	Thanos
+
+URL	http://10.150.210.109:10902
+
+Access	Server
+
+Then:
+
+Save & Test
+
+FINAL VERIFICATION:
+
+Bastion checks
+
+podman ps
+
+curl http://127.0.0.1:9000/minio/health/live
+
+curl http://127.0.0.1:10906/-/healthy
+
+curl http://127.0.0.1:10906/-/ready
+
+curl http://127.0.0.1:10902/-/healthy
+
+curl -I http://127.0.0.1:3000
+
+OpenShift checks:
+
+oc get pods -n demo-monitoring
+
+oc logs -n demo-monitoring deploy/prometheus-thanos -c prometheus --tail=50
+
+oc logs -n demo-monitoring deploy/prometheus-thanos -c thanos-sidecar --tail=100
+
+oc logs -n demo-monitoring deploy/kube-state-metrics --tail=50
+
+How This Scales to Multiple Clusters:
+
+Cluster A -> Prometheus + Thanos Sidecar
+
+Cluster B -> Prometheus + Thanos Sidecar
+
+Cluster C -> Prometheus + Thanos Sidecar
+
+                 |
+
+                 v
+
+         Central Thanos Query
+
+                 |
+
+                 v
+
+              Grafana
+
+As above we did demo for monitoring now we have to implement with below details.>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Now I have three cluster acmprod, kplusprod and pngpr.(As other cluster don't have connectivity with 10.150.195.135 will do later)
+
+Containers (minio, grafana, thanos-store and thanos-query) will run on 10.150.195.135 and pods (kube-state-metrics, node-exporter and prometheus-thanos) will run on above cluster.
+
+NFS: 
+
+[root@prbhvspngprb ~]# df -hT | egrep cent
+
+10.150.195.66:/central_grafana_datastg_ocp nfs4       25G  256K   25G   1% /root/central-monitoring
+
+[root@prbhvspngprb ~]#
+
+NFS connectivity enabled for acmprod, komgoprod, kplusprod and pngpr.
+
+Required Input					Example
+
+Namespace to use				central-monitoring
+
+Node IP for each cluster			acmprod=..., kplusprod=..., pngpr=...
+
+Whether to include kubelet/cAdvisor metrics	yes
+
+Whether to use same credentials shown above	yes
+
+acmprod
+
+acmocprod@prbahvsacmprodmg:~$ oc get no -o wide
+
+NAME                                         STATUS   ROLES                  AGE     VERSION            INTERNAL-IP     EXTERNAL-IP   OS-IMAGE                                                       KERNEL-VERSION                 CONTAINER-RUNTIME
+
+prbahvsacmprodm1.acmprod.arabbanking.local   Ready    control-plane,master   2y43d   v1.28.11+add48d0   10.150.160.13   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodm2.acmprod.arabbanking.local   Ready    control-plane,master   2y43d   v1.28.11+add48d0   10.150.160.14   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodm3.acmprod.arabbanking.local   Ready    control-plane,master   2y43d   v1.28.11+add48d0   10.150.160.15   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodw1.acmprod.arabbanking.local   Ready    worker                 2y40d   v1.28.11+add48d0   10.150.160.16   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodw2.acmprod.arabbanking.local   Ready    worker                 2y40d   v1.28.11+add48d0   10.150.160.17   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodw3.acmprod.arabbanking.local   Ready    infra                  2y40d   v1.28.11+add48d0   10.150.160.20   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+prbahvsacmprodw4.acmprod.arabbanking.local   Ready    infra                  2y40d   v1.28.11+add48d0   10.150.160.21   <none>        Red Hat Enterprise Linux CoreOS 415.92.202407191425-0 (Plow)   5.14.0-284.75.1.el9_2.x86_64   cri-o://1.28.8-2.rhaos4.15.gitfcaab07.el9
+
+acmocprod@prbahvsacmprodmg:~$
+
+kplusprod
+
+kplus@prbahvskpftobprap:~$ oc get no -o wide
+
+NAME                                    STATUS   ROLES                  AGE    VERSION    INTERNAL-IP     EXTERNAL-IP   OS-IMAGE                                                KERNEL-VERSION                 CONTAINER-RUNTIME
+
+prbahvskplusplatin1.arabbanking.local   Ready    infra                  313d   v1.31.13   10.150.200.20   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatin2.arabbanking.local   Ready    infra                  313d   v1.31.13   10.150.200.21   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatm1.arabbanking.local    Ready    control-plane,master   313d   v1.31.13   10.150.200.13   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatm2.arabbanking.local    Ready    control-plane,master   313d   v1.31.13   10.150.200.14   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatm3.arabbanking.local    Ready    control-plane,master   313d   v1.31.13   10.150.200.15   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatw1.arabbanking.local    Ready    worker                 313d   v1.31.13   10.150.200.16   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatw2.arabbanking.local    Ready    worker                 313d   v1.31.13   10.150.200.17   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatw3.arabbanking.local    Ready    worker                 313d   v1.31.13   10.150.200.18   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+prbahvskplusplatw4.arabbanking.local    Ready    worker                 313d   v1.31.13   10.150.200.19   <none>        Red Hat Enterprise Linux CoreOS 418.94.202510081222-0   5.14.0-427.93.1.el9_4.x86_64   cri-o://1.31.13-2.rhaos4.18.git15789b8.el9
+
+kplus@prbahvskpftobprap:~$
+
+pngpr
+
+[pnguser@prbhvspngprb ~]$ oc get no -o wide
+
+NAME                               STATUS   ROLES                  AGE   VERSION    INTERNAL-IP      EXTERNAL-IP   OS-IMAGE                                                KERNEL-VERSION                 CONTAINER-RUNTIME
+
+prbhvspngprin1.arabbanking.local   Ready    infra                  82d   v1.31.10   10.150.195.133   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprin2.arabbanking.local   Ready    infra                  82d   v1.31.10   10.150.195.134   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprm1.arabbanking.local    Ready    control-plane,master   82d   v1.31.10   10.150.195.128   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprm2.arabbanking.local    Ready    control-plane,master   82d   v1.31.10   10.150.195.129   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprm3.arabbanking.local    Ready    control-plane,master   82d   v1.31.10   10.150.195.130   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprw1.arabbanking.local    Ready    pngprd,worker          82d   v1.31.10   10.150.195.131   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+prbhvspngprw2.arabbanking.local    Ready    pngprd,worker          82d   v1.31.10   10.150.195.132   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+
+[pnguser@prbhvspngprb ~]$
+
+Centralized Monitoring Implementation Plan
+
+Based on your demo and the provided Thanos/Prometheus setup context, you can now extend it for 3 production clusters:
+
+acmprod
+
+kplusprod
+
+pngpr
+
+with centralized components on:
+
+Central bastion: 10.150.195.135
+
+and shared NFS available from:
+
+NFS server: 10.150.195.66:/central_grafana_datastg_ocp
+
+1. Target Architecture
+
+acmprod   ─┐
+
+kplusprod ─┼─> Prometheus + Thanos Sidecar + kube-state-metrics + node-exporter
+
+pngpr     ─┘
+
+                    |
+
+                    v
+
+          10.150.195.135 (Central Bastion)
+
+          MinIO <--> Thanos Store
+
+                    |
+
+                    v
+
+               Thanos Query
+
+                    |
+
+                    v
+
+                 Grafana
+
+2. Recommended Design
+
+On 10.150.195.135
+
+Run these containers:
+
+Component		Purpose
+
+MinIO			S3-compatible object storage for Thanos blocks
+
+Thanos Store		Reads historical metrics from MinIO
+
+Thanos Query		Aggregates live sidecar + historical store data
+
+Grafana			Visualization
+
+On each OpenShift cluster
+
+Deploy:
+
+Component		Purpose
+
+kube-state-metrics	Kubernetes object/state metrics
+
+node-exporter		Node-level metrics
+
+Prometheus		Scrapes metrics
+
+Thanos Sidecar		Exposes StoreAPI and uploads Prometheus blocks to MinIO
+
+3. Important Improvement Over Demo
+
+Your demo had only:
+
+kube-state-metrics
+
+prometheus-thanos
+
+For production, based on the provided context, you should also add:
+
+node-exporter for node metrics
+
+optionally kubelet/cAdvisor scraping if you need pod CPU/memory usage
+
+From the context:
+
+kube-state-metrics gives object/state metrics
+
+node-exporter gives node metrics
+
+kubelet/cAdvisor is needed for container resource usage
+
+Use worker/infra node IPs that should be reachable from the bastion.
+
+Cluster		Recommended Node IP for 30901
+
+acmprod		10.150.160.16
+
+kplusprod	10.150.200.16
+
+pngpr		10.150.195.131
+
+[root@prbhvspngprb ~]# ping 10.150.160.16
+
+PING 10.150.160.16 (10.150.160.16) 56(84) bytes of data.
+
+64 bytes from 10.150.160.16: icmp_seq=1 ttl=60 time=0.955 ms
+
+64 bytes from 10.150.160.16: icmp_seq=2 ttl=60 time=0.224 ms
+
+64 bytes from 10.150.160.16: icmp_seq=3 ttl=60 time=0.208 ms
+
+^C64 bytes from 10.150.160.16: icmp_seq=4 ttl=60 time=0.273 ms
+
+64 bytes from 10.150.160.16: icmp_seq=5 ttl=60 time=0.267 ms
+
+^C
+
+--- 10.150.160.16 ping statistics ---
+
+5 packets transmitted, 5 received, 0% packet loss, time 4108ms
+
+rtt min/avg/max/mdev = 0.208/0.385/0.955/0.285 ms
+
+[root@prbhvspngprb ~]# ping 10.150.200.16
+
+PING 10.150.200.16 (10.150.200.16) 56(84) bytes of data.
+
+64 bytes from 10.150.200.16: icmp_seq=1 ttl=60 time=1.08 ms
+
+64 bytes from 10.150.200.16: icmp_seq=2 ttl=60 time=0.261 ms
+
+^C
+
+--- 10.150.200.16 ping statistics ---
+
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+
+rtt min/avg/max/mdev = 0.261/0.668/1.075/0.407 ms
+
+[root@prbhvspngprb ~]# ping 10.150.195.131
+
+PING 10.150.195.131 (10.150.195.131) 56(84) bytes of data.
+
+64 bytes from 10.150.195.131: icmp_seq=1 ttl=64 time=0.922 ms
+
+64 bytes from 10.150.195.131: icmp_seq=2 ttl=64 time=0.137 ms
+
+^C
+
+--- 10.150.195.131 ping statistics ---
+
+2 packets transmitted, 2 received, 0% packet loss, time 1004ms
+
+rtt min/avg/max/mdev = 0.137/0.529/0.922/0.392 ms
+
+[root@prbhvspngprb ~]#
+
+1. Central Bastion Commands for 10.150.195.135
+
+Use your NFS mount:
+
+mkdir -p /root/central-monitoring/minio
+
+mkdir -p /root/central-monitoring/grafana
+
+mkdir -p /root/central-monitoring/thanos
+
+chmod -R 755 /root/central-monitoring/minio /root/central-monitoring/grafana /root/central-monitoring/thanos
+
+chmod 777 /root/central-monitoring/Grafana
+
+MinIO
+
+podman run -d \
+
+  --name minio \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /root/central-monitoring/minio:/data \
+
+  -e MINIO_ROOT_USER=minioadmin \
+
+  -e MINIO_ROOT_PASSWORD='ABC@BANK2026' \
+
+  quay.io/minio/minio:latest \
+
+  server /data --console-address ":9001"
+
+Verify
+
+podman ps
+
+curl -i http://127.0.0.1:9000/minio/health/live
+
+mc client and bucket
+
+mkdir -p ~/aistor-binaries
+
+curl --progress-bar -L https://dl.min.io/aistor/mc/release/linux-amd64/mc -o ~/aistor-binaries/mc
+
+chmod +x ~/aistor-binaries/mc
+
+ln -sf ~/aistor-binaries/mc /usr/local/bin/mc
+
+mc --version
+
+mc alias set myminio http://10.150.195.135:9000 minioadmin 'ABC@BANK2026'
+
+mc mb myminio/thanos-metrics
+
+mc ls myminio
+
+Object store config
+
+cat > /root/central-monitoring/thanos/objstore.yml <<'EOF'
+
+type: S3
+
+config:
+
+  bucket: thanos-metrics
+
+  endpoint: 10.150.195.135:9000
+
+  access_key: minioadmin
+
+  secret_key: ABC@BANK2026
+
+  insecure: true
+
+EOF
+
+chmod 644 /root/central-monitoring/thanos/objstore.yml
+
+cat /root/central-monitoring/thanos/objstore.yml
+
+Grafana
+
+podman run -d \
+
+  --name grafana \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /root/central-monitoring/grafana:/var/lib/grafana \
+
+  -e GF_SECURITY_ADMIN_USER=admin \
+
+  -e GF_SECURITY_ADMIN_PASSWORD='ABC@BANK2026' \
+
+  docker.io/grafana/grafana:latest
+
+Thanos Store
+
+podman run -d \
+
+  --name thanos-store \
+
+  --network host \
+
+  --security-opt label=disable \
+
+  -v /root/central-monitoring/thanos:/etc/thanos \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  store \
+
+  --data-dir=/tmp/thanos/store \
+
+  --objstore.config-file=/etc/thanos/objstore.yml \
+
+  --http-address=0.0.0.0:10906 \
+
+  --grpc-address=0.0.0.0:10905
+
+Thanos Query
+
+podman run -d \
+
+  --name thanos-query \
+
+  --network host \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  query \
+
+  --http-address=0.0.0.0:10902 \
+
+  --grpc-address=0.0.0.0:10901 \
+
+  --store=10.150.195.135:10905 \
+
+  --store=10.150.160.16:30901 \
+
+  --store=10.150.200.16:30901 \
+
+  --store=10.150.195.131:30901
+
+Verify central services
+
+podman ps
+
+curl http://127.0.0.1:9000/minio/health/live
+
+curl http://127.0.0.1:10906/-/healthy
+
+curl http://127.0.0.1:10906/-/ready
+
+curl http://127.0.0.1:10902/-/healthy
+
+curl -I http://127.0.0.1:3000
+
+podman logs thanos-query
+
+2. OpenShift Manifest Template Per Cluster
+
+You need 3 manifests, one for each cluster, with only this changing:
+
+Cluster			external_labels.cluster
+
+acmprod			acmprod
+
+kplusprod		kplusprod
+
+pngpr			pngpr
+
+Also point all clusters to MinIO on:
+
+10.150.195.135:9000
+
+3. Important Note About node-exporter
+
+Your earlier demo did not include it, but now you explicitly want it.
+
+So I am including:
+
+node-exporter as DaemonSet
+
+kube-state-metrics
+
+Prometheus + Thanos sidecar
+
+NodePort service for sidecar access
+
+kubelet/cAdvisor scraping
+
+4. acmprod Manifest
+
+Save as central-monitoring-acmprod.yaml
+
+apiVersion: v1
+
+kind: Namespace
+
+metadata:
+
+  name: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: prometheus
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: Secret
+
+metadata:
+
+  name: thanos-objstore-config
+
+  namespace: central-monitoring
+
+type: Opaque
+
+stringData:
+
+  objstore.yml: |
+
+    type: S3
+
+    config:
+
+      bucket: thanos-metrics
+
+      endpoint: 10.150.195.135:9000
+
+      insecure: true
+
+      access_key: minioadmin
+
+      secret_key: ABC@BANK2026
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - configmaps
+
+      - secrets
+
+      - nodes
+
+      - pods
+
+      - services
+
+      - resourcequotas
+
+      - replicationcontrollers
+
+      - limitranges
+
+      - persistentvolumeclaims
+
+      - persistentvolumes
+
+      - namespaces
+
+      - endpoints
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["apps"]
+
+    resources:
+
+      - statefulsets
+
+      - daemonsets
+
+      - deployments
+
+      - replicasets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["batch"]
+
+    resources:
+
+      - cronjobs
+
+      - jobs
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["autoscaling"]
+
+    resources:
+
+      - horizontalpodautoscalers
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["networking.k8s.io"]
+
+    resources:
+
+      - ingresses
+
+      - networkpolicies
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["policy"]
+
+    resources:
+
+      - poddisruptionbudgets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["storage.k8s.io"]
+
+    resources:
+
+      - storageclasses
+
+      - volumeattachments
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["admissionregistration.k8s.io"]
+
+    resources:
+
+      - mutatingwebhookconfigurations
+
+      - validatingwebhookconfigurations
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["coordination.k8s.io"]
+
+    resources:
+
+      - leases
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["certificates.k8s.io"]
+
+    resources:
+
+      - certificatesigningrequests
+
+    verbs: ["list", "watch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-kube-state-metrics
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: kube-state-metrics
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - nodes
+
+      - nodes/metrics
+
+      - services
+
+      - endpoints
+
+      - pods
+
+      - namespaces
+
+      - nodes/proxy
+
+    verbs: ["get", "list", "watch"]
+
+  - nonResourceURLs: ["/metrics"]
+
+    verbs: ["get"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-prometheus
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: prometheus
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: kube-state-metrics
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: kube-state-metrics
+
+    spec:
+
+      serviceAccountName: kube-state-metrics
+
+      containers:
+
+        - name: kube-state-metrics
+
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+
+          args:
+
+            - --port=8080
+
+          ports:
+
+            - name: http-metrics
+
+              containerPort: 8080
+
+          readinessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 5
+
+            timeoutSeconds: 5
+
+          livenessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 15
+
+            timeoutSeconds: 5
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  selector:
+
+    app: kube-state-metrics
+
+  ports:
+
+    - name: http-metrics
+
+      port: 8080
+
+      targetPort: http-metrics
+
+---
+
+apiVersion: apps/v1
+
+kind: DaemonSet
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    matchLabels:
+
+      app: node-exporter
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: node-exporter
+
+    spec:
+
+      serviceAccountName: node-exporter
+
+      hostNetwork: true
+
+      hostPID: true
+
+      tolerations:
+
+        - operator: Exists
+
+      containers:
+
+        - name: node-exporter
+
+          image: quay.io/prometheus/node-exporter:v1.8.2
+
+          args:
+
+            - --path.rootfs=/host
+
+            - --web.listen-address=:9100
+
+          ports:
+
+            - name: metrics
+
+              containerPort: 9100
+
+              hostPort: 9100
+
+          securityContext:
+
+            privileged: true
+
+          volumeMounts:
+
+            - name: root
+
+              mountPath: /host
+
+              readOnly: true
+
+              mountPropagation: HostToContainer
+
+      volumes:
+
+        - name: root
+
+          hostPath:
+
+            path: /
+
+            type: Directory
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    app: node-exporter
+
+  ports:
+
+    - name: metrics
+
+      port: 9100
+
+      targetPort: 9100
+
+---
+
+apiVersion: v1
+
+kind: ConfigMap
+
+metadata:
+
+  name: prometheus-config
+
+  namespace: central-monitoring
+
+data:
+
+  prometheus.yml: |
+
+    global:
+
+      scrape_interval: 30s
+
+      evaluation_interval: 30s
+
+      external_labels:
+
         cluster: acmprod
 
     scrape_configs:
+
       - job_name: 'prometheus'
+
         static_configs:
+
           - targets: ['localhost:9090']
 
       - job_name: 'kube-state-metrics'
+
         static_configs:
+
           - targets:
+
               - kube-state-metrics.central-monitoring.svc:8080
 
       - job_name: 'node-exporter'
+
         kubernetes_sd_configs:
+
           - role: endpoints
+
             namespaces:
+
               names:
+
                 - central-monitoring
+
         relabel_configs:
+
           - source_labels: [__meta_kubernetes_service_name]
+
             regex: node-exporter
+
             action: keep
+
           - source_labels: [__meta_kubernetes_endpoint_port_name]
+
             regex: metrics
+
             action: keep
 
       - job_name: 'kubelet'
+
         scheme: https
+
         tls_config:
+
           insecure_skip_verify: true
+
         bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
         kubernetes_sd_configs:
+
           - role: node
+
         relabel_configs:
-          - target_label: __address__
+
+          - target_label: address
+
             replacement: kubernetes.default.svc:443
+
           - source_labels: [__meta_kubernetes_node_name]
+
             target_label: __metrics_path__
+
             replacement: /api/v1/nodes/${1}/proxy/metrics
 
       - job_name: 'cadvisor'
+
         scheme: https
+
         tls_config:
+
           insecure_skip_verify: true
+
         bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
         kubernetes_sd_configs:
+
           - role: node
+
         relabel_configs:
-          - target_label: __address__
+
+          - target_label: address
+
             replacement: kubernetes.default.svc:443
+
           - source_labels: [__meta_kubernetes_node_name]
+
             target_label: __metrics_path__
+
             replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
 ---
+
 apiVersion: apps/v1
+
 kind: Deployment
+
 metadata:
+
   name: prometheus-thanos
+
   namespace: central-monitoring
+
   labels:
+
     app: prometheus-thanos
+
 spec:
+
   replicas: 1
+
   selector:
+
     matchLabels:
+
       app: prometheus-thanos
+
   template:
+
     metadata:
+
       labels:
+
         app: prometheus-thanos
+
     spec:
+
       serviceAccountName: prometheus
+
       securityContext:
+
         seccompProfile:
+
           type: RuntimeDefault
+
       containers:
+
         - name: prometheus
+
           image: quay.io/prometheus/prometheus:v2.54.1
+
           args:
+
             - --config.file=/etc/prometheus/prometheus.yml
+
             - --storage.tsdb.path=/prometheus/data
+
             - --storage.tsdb.min-block-duration=2h
+
             - --storage.tsdb.max-block-duration=2h
+
             - --web.enable-lifecycle
+
           ports:
+
             - name: http
+
               containerPort: 9090
+
           volumeMounts:
+
             - name: config
+
               mountPath: /etc/prometheus
+
             - name: data
+
               mountPath: /prometheus
+
         - name: thanos-sidecar
+
           image: quay.io/thanos/thanos:v0.36.1
+
           args:
+
             - sidecar
+
             - --tsdb.path=/prometheus/data
+
             - --prometheus.url=http://localhost:9090
+
             - --objstore.config-file=/etc/thanos/objstore.yml
+
             - --grpc-address=0.0.0.0:10901
+
             - --http-address=0.0.0.0:10902
+
           ports:
+
             - name: grpc
+
               containerPort: 10901
+
             - name: http-sidecar
+
               containerPort: 10902
+
           volumeMounts:
+
             - name: data
+
               mountPath: /prometheus
+
             - name: objstore-config
+
               mountPath: /etc/thanos
+
       volumes:
+
         - name: config
+
           configMap:
+
             name: prometheus-config
+
         - name: objstore-config
+
           secret:
+
             secretName: thanos-objstore-config
+
         - name: data
+
           emptyDir: {}
+
 ---
+
 apiVersion: v1
+
 kind: Service
+
 metadata:
+
   name: prometheus-thanos
+
   namespace: central-monitoring
+
   labels:
+
     app: prometheus-thanos
+
 spec:
+
   selector:
+
     app: prometheus-thanos
+
   ports:
+
     - name: http
+
       port: 9090
+
       targetPort: http
+
     - name: grpc
+
       port: 10901
+
       targetPort: grpc
+
     - name: http-sidecar
+
       port: 10902
+
       targetPort: http-sidecar
+
 ---
+
 apiVersion: v1
+
 kind: Service
+
 metadata:
+
   name: prometheus-thanos-nodeport
+
   namespace: central-monitoring
+
 spec:
+
   type: NodePort
+
   selector:
+
     app: prometheus-thanos
+
   ports:
+
     - name: grpc
+
       port: 10901
+
       targetPort: grpc
+
       nodePort: 30901
+
     - name: http-sidecar
+
       port: 10902
+
       targetPort: http-sidecar
+
       nodePort: 30902
+
     - name: http
+
       port: 9090
+
       targetPort: http
+
       nodePort: 30090
+
+--------------------------------------------------------------------
+
+5. kplusprod
+
+central-monitoring-kplusprod.yaml
+
+apiVersion: v1
+
+kind: Namespace
+
+metadata:
+
+  name: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: prometheus
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: Secret
+
+metadata:
+
+  name: thanos-objstore-config
+
+  namespace: central-monitoring
+
+type: Opaque
+
+stringData:
+
+  objstore.yml: |
+
+    type: S3
+
+    config:
+
+      bucket: thanos-metrics
+
+      endpoint: 10.150.195.135:9000
+
+      insecure: true
+
+      access_key: minioadmin
+
+      secret_key: ABC@BANK2026
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - configmaps
+
+      - secrets
+
+      - nodes
+
+      - pods
+
+      - services
+
+      - resourcequotas
+
+      - replicationcontrollers
+
+      - limitranges
+
+      - persistentvolumeclaims
+
+      - persistentvolumes
+
+      - namespaces
+
+      - endpoints
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["apps"]
+
+    resources:
+
+      - statefulsets
+
+      - daemonsets
+
+      - deployments
+
+      - replicasets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["batch"]
+
+    resources:
+
+      - cronjobs
+
+      - jobs
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["autoscaling"]
+
+    resources:
+
+      - horizontalpodautoscalers
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["networking.k8s.io"]
+
+    resources:
+
+      - ingresses
+
+      - networkpolicies
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["policy"]
+
+    resources:
+
+      - poddisruptionbudgets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["storage.k8s.io"]
+
+    resources:
+
+      - storageclasses
+
+      - volumeattachments
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["admissionregistration.k8s.io"]
+
+    resources:
+
+      - mutatingwebhookconfigurations
+
+      - validatingwebhookconfigurations
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["coordination.k8s.io"]
+
+    resources:
+
+      - leases
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["certificates.k8s.io"]
+
+    resources:
+
+      - certificatesigningrequests
+
+    verbs: ["list", "watch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-kube-state-metrics
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: kube-state-metrics
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - nodes
+
+      - nodes/metrics
+
+      - services
+
+      - endpoints
+
+      - pods
+
+      - namespaces
+
+      - nodes/proxy
+
+    verbs: ["get", "list", "watch"]
+
+  - nonResourceURLs: ["/metrics"]
+
+    verbs: ["get"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-prometheus
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: prometheus
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: kube-state-metrics
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: kube-state-metrics
+
+    spec:
+
+      serviceAccountName: kube-state-metrics
+
+      containers:
+
+        - name: kube-state-metrics
+
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+
+          args:
+
+            - --port=8080
+
+          ports:
+
+            - name: http-metrics
+
+              containerPort: 8080
+
+          readinessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 5
+
+            timeoutSeconds: 5
+
+          livenessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 15
+
+            timeoutSeconds: 5
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  selector:
+
+    app: kube-state-metrics
+
+  ports:
+
+    - name: http-metrics
+
+      port: 8080
+
+      targetPort: http-metrics
+
+---
+
+apiVersion: apps/v1
+
+kind: DaemonSet
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    matchLabels:
+
+      app: node-exporter
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: node-exporter
+
+    spec:
+
+      serviceAccountName: node-exporter
+
+      hostNetwork: true
+
+      hostPID: true
+
+      tolerations:
+
+        - operator: Exists
+
+      containers:
+
+        - name: node-exporter
+
+          image: quay.io/prometheus/node-exporter:v1.8.2
+
+          args:
+
+            - --path.rootfs=/host
+
+            - --web.listen-address=:9100
+
+          ports:
+
+            - name: metrics
+
+              containerPort: 9100
+
+              hostPort: 9100
+
+          securityContext:
+
+            privileged: true
+
+          volumeMounts:
+
+            - name: root
+
+              mountPath: /host
+
+              readOnly: true
+
+              mountPropagation: HostToContainer
+
+      volumes:
+
+        - name: root
+
+          hostPath:
+
+            path: /
+
+            type: Directory
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    app: node-exporter
+
+  ports:
+
+    - name: metrics
+
+      port: 9100
+
+      targetPort: 9100
+
+---
+
+apiVersion: v1
+
+kind: ConfigMap
+
+metadata:
+
+  name: prometheus-config
+
+  namespace: central-monitoring
+
+data:
+
+  prometheus.yml: |
+
+    global:
+
+      scrape_interval: 30s
+
+      evaluation_interval: 30s
+
+      external_labels:
+
+        cluster: kplusprod
+
+    scrape_configs:
+
+      - job_name: 'prometheus'
+
+        static_configs:
+
+          - targets: ['localhost:9090']
+
+      - job_name: 'kube-state-metrics'
+
+        static_configs:
+
+          - targets:
+
+              - kube-state-metrics.central-monitoring.svc:8080
+
+      - job_name: 'node-exporter'
+
+        kubernetes_sd_configs:
+
+          - role: endpoints
+
+            namespaces:
+
+              names:
+
+                - central-monitoring
+
+        relabel_configs:
+
+          - source_labels: [__meta_kubernetes_service_name]
+
+            regex: node-exporter
+
+            action: keep
+
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+
+            regex: metrics
+
+            action: keep
+
+      - job_name: 'kubelet'
+
+        scheme: https
+
+        tls_config:
+
+          insecure_skip_verify: true
+
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+
+          - role: node
+
+        relabel_configs:
+
+          - target_label: address
+
+            replacement: kubernetes.default.svc:443
+
+          - source_labels: [__meta_kubernetes_node_name]
+
+            target_label: __metrics_path__
+
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      - job_name: 'cadvisor'
+
+        scheme: https
+
+        tls_config:
+
+          insecure_skip_verify: true
+
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+
+          - role: node
+
+        relabel_configs:
+
+          - target_label: address
+
+            replacement: kubernetes.default.svc:443
+
+          - source_labels: [__meta_kubernetes_node_name]
+
+            target_label: __metrics_path__
+
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: prometheus-thanos
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: prometheus-thanos
+
+    spec:
+
+      serviceAccountName: prometheus
+
+      securityContext:
+
+        seccompProfile:
+
+          type: RuntimeDefault
+
+      containers:
+
+        - name: prometheus
+
+          image: quay.io/prometheus/prometheus:v2.54.1
+
+          args:
+
+            - --config.file=/etc/prometheus/prometheus.yml
+
+            - --storage.tsdb.path=/prometheus/data
+
+            - --storage.tsdb.min-block-duration=2h
+
+            - --storage.tsdb.max-block-duration=2h
+
+            - --web.enable-lifecycle
+
+          ports:
+
+            - name: http
+
+              containerPort: 9090
+
+          volumeMounts:
+
+            - name: config
+
+              mountPath: /etc/prometheus
+
+            - name: data
+
+              mountPath: /prometheus
+
+        - name: thanos-sidecar
+
+          image: quay.io/thanos/thanos:v0.36.1
+
+          args:
+
+            - sidecar
+
+            - --tsdb.path=/prometheus/data
+
+            - --prometheus.url=http://localhost:9090
+
+            - --objstore.config-file=/etc/thanos/objstore.yml
+
+            - --grpc-address=0.0.0.0:10901
+
+            - --http-address=0.0.0.0:10902
+
+          ports:
+
+            - name: grpc
+
+              containerPort: 10901
+
+            - name: http-sidecar
+
+              containerPort: 10902
+
+          volumeMounts:
+
+            - name: data
+
+              mountPath: /prometheus
+
+            - name: objstore-config
+
+              mountPath: /etc/thanos
+
+      volumes:
+
+        - name: config
+
+          configMap:
+
+            name: prometheus-config
+
+        - name: objstore-config
+
+          secret:
+
+            secretName: thanos-objstore-config
+
+        - name: data
+
+          emptyDir: {}
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos-nodeport
+
+  namespace: central-monitoring
+
+spec:
+
+  type: NodePort
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+      nodePort: 30901
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+      nodePort: 30902
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+      nodePort: 30090
+
+---------------------------------------------------------------------------------
+
+For pngpr
+
+apiVersion: v1
+
+kind: Namespace
+
+metadata:
+
+  name: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: prometheus
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: ServiceAccount
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+---
+
+apiVersion: v1
+
+kind: Secret
+
+metadata:
+
+  name: thanos-objstore-config
+
+  namespace: central-monitoring
+
+type: Opaque
+
+stringData:
+
+  objstore.yml: |
+
+    type: S3
+
+    config:
+
+      bucket: thanos-metrics
+
+      endpoint: 10.150.195.135:9000
+
+      insecure: true
+
+      access_key: minioadmin
+
+      secret_key: ABC@BANK2026
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - configmaps
+
+      - secrets
+
+      - nodes
+
+      - pods
+
+      - services
+
+      - resourcequotas
+
+      - replicationcontrollers
+
+      - limitranges
+
+      - persistentvolumeclaims
+
+      - persistentvolumes
+
+      - namespaces
+
+      - endpoints
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["apps"]
+
+    resources:
+
+      - statefulsets
+
+      - daemonsets
+
+      - deployments
+
+      - replicasets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["batch"]
+
+    resources:
+
+      - cronjobs
+
+      - jobs
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["autoscaling"]
+
+    resources:
+
+      - horizontalpodautoscalers
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["networking.k8s.io"]
+
+    resources:
+
+      - ingresses
+
+      - networkpolicies
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["policy"]
+
+    resources:
+
+      - poddisruptionbudgets
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["storage.k8s.io"]
+
+    resources:
+
+      - storageclasses
+
+      - volumeattachments
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["admissionregistration.k8s.io"]
+
+    resources:
+
+      - mutatingwebhookconfigurations
+
+      - validatingwebhookconfigurations
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["coordination.k8s.io"]
+
+    resources:
+
+      - leases
+
+    verbs: ["list", "watch"]
+
+  - apiGroups: ["certificates.k8s.io"]
+
+    resources:
+
+      - certificatesigningrequests
+
+    verbs: ["list", "watch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-kube-state-metrics
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-kube-state-metrics
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: kube-state-metrics
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRole
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+rules:
+
+  - apiGroups: [""]
+
+    resources:
+
+      - nodes
+
+      - nodes/metrics
+
+      - services
+
+      - endpoints
+
+      - pods
+
+      - namespaces
+
+      - nodes/proxy
+
+    verbs: ["get", "list", "watch"]
+
+  - nonResourceURLs: ["/metrics"]
+
+    verbs: ["get"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: ClusterRoleBinding
+
+metadata:
+
+  name: central-monitoring-prometheus
+
+roleRef:
+
+  apiGroup: rbac.authorization.k8s.io
+
+  kind: ClusterRole
+
+  name: central-monitoring-prometheus
+
+subjects:
+
+  - kind: ServiceAccount
+
+    name: prometheus
+
+    namespace: central-monitoring
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: kube-state-metrics
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: kube-state-metrics
+
+    spec:
+
+      serviceAccountName: kube-state-metrics
+
+      containers:
+
+        - name: kube-state-metrics
+
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+
+          args:
+
+            - --port=8080
+
+          ports:
+
+            - name: http-metrics
+
+              containerPort: 8080
+
+          readinessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 5
+
+            timeoutSeconds: 5
+
+          livenessProbe:
+
+            httpGet:
+
+              path: /metrics
+
+              port: http-metrics
+
+            initialDelaySeconds: 15
+
+            timeoutSeconds: 5
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: kube-state-metrics
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: kube-state-metrics
+
+spec:
+
+  selector:
+
+    app: kube-state-metrics
+
+  ports:
+
+    - name: http-metrics
+
+      port: 8080
+
+      targetPort: http-metrics
+
+---
+
+apiVersion: apps/v1
+
+kind: DaemonSet
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    matchLabels:
+
+      app: node-exporter
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: node-exporter
+
+    spec:
+
+      serviceAccountName: node-exporter
+
+      hostNetwork: true
+
+      hostPID: true
+
+      tolerations:
+
+        - operator: Exists
+
+      containers:
+
+        - name: node-exporter
+
+          image: quay.io/prometheus/node-exporter:v1.8.2
+
+          args:
+
+            - --path.rootfs=/host
+
+            - --web.listen-address=:9100
+
+          ports:
+
+            - name: metrics
+
+              containerPort: 9100
+
+              hostPort: 9100
+
+          securityContext:
+
+            privileged: true
+
+          volumeMounts:
+
+            - name: root
+
+              mountPath: /host
+
+              readOnly: true
+
+              mountPropagation: HostToContainer
+
+      volumes:
+
+        - name: root
+
+          hostPath:
+
+            path: /
+
+            type: Directory
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: node-exporter
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: node-exporter
+
+spec:
+
+  selector:
+
+    app: node-exporter
+
+  ports:
+
+    - name: metrics
+
+      port: 9100
+
+      targetPort: 9100
+
+---
+
+apiVersion: v1
+
+kind: ConfigMap
+
+metadata:
+
+  name: prometheus-config
+
+  namespace: central-monitoring
+
+data:
+
+  prometheus.yml: |
+
+    global:
+
+      scrape_interval: 30s
+
+      evaluation_interval: 30s
+
+      external_labels:
+
+        cluster: pngpr
+
+    scrape_configs:
+
+      - job_name: 'prometheus'
+
+        static_configs:
+
+          - targets: ['localhost:9090']
+
+      - job_name: 'kube-state-metrics'
+
+        static_configs:
+
+          - targets:
+
+              - kube-state-metrics.central-monitoring.svc:8080
+
+      - job_name: 'node-exporter'
+
+        kubernetes_sd_configs:
+
+          - role: endpoints
+
+            namespaces:
+
+              names:
+
+                - central-monitoring
+
+        relabel_configs:
+
+          - source_labels: [__meta_kubernetes_service_name]
+
+            regex: node-exporter
+
+            action: keep
+
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+
+            regex: metrics
+
+            action: keep
+
+      - job_name: 'kubelet'
+
+        scheme: https
+
+        tls_config:
+
+          insecure_skip_verify: true
+
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+
+          - role: node
+
+        relabel_configs:
+
+          - target_label: address
+
+            replacement: kubernetes.default.svc:443
+
+          - source_labels: [__meta_kubernetes_node_name]
+
+            target_label: __metrics_path__
+
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      - job_name: 'cadvisor'
+
+        scheme: https
+
+        tls_config:
+
+          insecure_skip_verify: true
+
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+
+          - role: node
+
+        relabel_configs:
+
+          - target_label: address
+
+            replacement: kubernetes.default.svc:443
+
+          - source_labels: [__meta_kubernetes_node_name]
+
+            target_label: __metrics_path__
+
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+---
+
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  replicas: 1
+
+  selector:
+
+    matchLabels:
+
+      app: prometheus-thanos
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: prometheus-thanos
+
+    spec:
+
+      serviceAccountName: prometheus
+
+      securityContext:
+
+        seccompProfile:
+
+          type: RuntimeDefault
+
+      containers:
+
+        - name: prometheus
+
+          image: quay.io/prometheus/prometheus:v2.54.1
+
+          args:
+
+            - --config.file=/etc/prometheus/prometheus.yml
+
+            - --storage.tsdb.path=/prometheus/data
+
+            - --storage.tsdb.min-block-duration=2h
+
+            - --storage.tsdb.max-block-duration=2h
+
+            - --web.enable-lifecycle
+
+          ports:
+
+            - name: http
+
+              containerPort: 9090
+
+          volumeMounts:
+
+            - name: config
+
+              mountPath: /etc/prometheus
+
+            - name: data
+
+              mountPath: /prometheus
+
+        - name: thanos-sidecar
+
+          image: quay.io/thanos/thanos:v0.36.1
+
+          args:
+
+            - sidecar
+
+            - --tsdb.path=/prometheus/data
+
+            - --prometheus.url=http://localhost:9090
+
+            - --objstore.config-file=/etc/thanos/objstore.yml
+
+            - --grpc-address=0.0.0.0:10901
+
+            - --http-address=0.0.0.0:10902
+
+          ports:
+
+            - name: grpc
+
+              containerPort: 10901
+
+            - name: http-sidecar
+
+              containerPort: 10902
+
+          volumeMounts:
+
+            - name: data
+
+              mountPath: /prometheus
+
+            - name: objstore-config
+
+              mountPath: /etc/thanos
+
+      volumes:
+
+        - name: config
+
+          configMap:
+
+            name: prometheus-config
+
+        - name: objstore-config
+
+          secret:
+
+            secretName: thanos-objstore-config
+
+        - name: data
+
+          emptyDir: {}
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos
+
+  namespace: central-monitoring
+
+  labels:
+
+    app: prometheus-thanos
+
+spec:
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+---
+
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+  name: prometheus-thanos-nodeport
+
+  namespace: central-monitoring
+
+spec:
+
+  type: NodePort
+
+  selector:
+
+    app: prometheus-thanos
+
+  ports:
+
+    - name: grpc
+
+      port: 10901
+
+      targetPort: grpc
+
+      nodePort: 30901
+
+    - name: http-sidecar
+
+      port: 10902
+
+      targetPort: http-sidecar
+
+      nodePort: 30902
+
+    - name: http
+
+      port: 9090
+
+      targetPort: http
+
+      nodePort: 30090
+
+Apply on Each Cluster
+
+acmprod
+
+oc apply -f central-monitoring-acmprod.yaml
+
+oc get pods -n central-monitoring
+
+oc get svc -n central-monitoring
+
+kplusprod
+
+oc apply -f central-monitoring-kplusprod.yaml
+
+oc get pods -n central-monitoring
+
+oc get svc -n central-monitoring
+
+pngpr
+
+oc apply -f central-monitoring-pngpr.yaml
+
+oc get pods -n central-monitoring
+
+oc get svc -n central-monitoring
+
+7. Test NodePort Reachability from Bastion
+
+From 10.150.195.135:
+
+nc -vz 10.150.160.16 30901
+
+nc -vz 10.150.200.16 30901
+
+nc -vz 10.150.195.131 30901
+
+8. If Thanos Query Was Already Running
+
+Recreate it cleanly:
+
+podman rm -f thanos-query
+
+podman run -d \
+
+  --name thanos-query \
+
+  --network host \
+
+  quay.io/thanos/thanos:v0.36.1 \
+
+  query \
+
+  --http-address=0.0.0.0:10902 \
+
+  --grpc-address=0.0.0.0:10901 \
+
+  --store=10.150.195.135:10905 \
+
+  --store=10.150.160.16:30901 \
+
+  --store=10.150.200.16:30901 \
+
+  --store=10.150.195.131:30901
+
+Check logs:
+
+podman logs thanos-query
+
+Expected pattern:
+
+store added for bastion store
+
+store added for cluster sidecars
+
+no connection refused
+
+9. Grafana Configuration
+
+Open:
+
+http://10.150.195.135:3000
+
+Use:		
+
+Field		Valu	
+
+Name		Thanos
+
+Type		Prometheus
+
+URL		http://10.150.195.135:10902
+
+Access		Server
+
+Then click Save & Test.
+
+10. Expected Result
+
+In Grafana/Thanos, you should be able to query with the cluster label:
+
+
+
+I am following above
+
+choose worker node IP from all cluster and help me to do deployment. As on worker node will not able to run container as podman so if possible run as pod
 
 [root@prbhvspngprb central-monitoring]# oc describe ds node-exporter
 Name:           node-exporter
