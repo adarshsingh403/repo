@@ -433,3 +433,52 @@ spec:
       port: 9090
       targetPort: http
       nodePort: 30090
+
+[root@prbhvspngprb central-monitoring]# oc describe ds node-exporter
+Name:           node-exporter
+Selector:       app=node-exporter
+Node-Selector:  <none>
+Labels:         app=node-exporter
+Annotations:    deprecated.daemonset.template.generation: 1
+Desired Number of Nodes Scheduled: 7
+Current Number of Nodes Scheduled: 0
+Number of Nodes Scheduled with Up-to-date Pods: 0
+Number of Nodes Scheduled with Available Pods: 0
+Number of Nodes Misscheduled: 0
+Pods Status:  0 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:           app=node-exporter
+  Service Account:  node-exporter
+  Containers:
+   node-exporter:
+    Image:      quay.io/prometheus/node-exporter:v1.8.2
+    Port:       9100/TCP
+    Host Port:  9100/TCP
+    Args:
+      --path.rootfs=/host
+      --web.listen-address=:9100
+    Environment:  <none>
+    Mounts:
+      /host from root (ro)
+  Volumes:
+   root:
+    Type:          HostPath (bare host directory volume)
+    Path:          /
+    HostPathType:  Directory
+  Node-Selectors:  <none>
+  Tolerations:     op=Exists
+Events:
+  Type     Reason        Age                   From                  Message
+  ----     ------        ----                  ----                  -------
+  Warning  FailedCreate  64s (x17 over 5m10s)  daemonset-controller  Error creating: pods "node-exporter-" is forbidden: unable to validate against any security context constraint: [provider "pngprd-scc": Forbidden: not usable by user or serviceaccount, provider "anyuid": Forbidden: not usable by user or serviceaccount, provider restricted-v2: .spec.securityContext.hostNetwork: Invalid value: true: Host network is not allowed to be used, provider restricted-v2: .spec.securityContext.hostPID: Invalid value: true: Host PID is not allowed to be used, spec.volumes[0]: Invalid value: "hostPath": hostPath volumes are not allowed to be used, provider restricted-v2: .containers[0].privileged: Invalid value: true: Privileged containers are not allowed, provider restricted-v2: .containers[0].hostNetwork: Invalid value: true: Host network is not allowed to be used, provider restricted-v2: .containers[0].containers[0].hostPort: Invalid value: 9100: Host ports are not allowed to be used, provider restricted-v2: .containers[0].hostPID: Invalid value: true: Host PID is not allowed to be used, provider "restricted": Forbidden: not usable by user or serviceaccount, provider "nonroot-v2": Forbidden: not usable by user or serviceaccount, provider "nonroot": Forbidden: not usable by user or serviceaccount, provider "hostmount-anyuid": Forbidden: not usable by user or serviceaccount, provider "trident-controller": Forbidden: not usable by user or serviceaccount, provider "logging-scc": Forbidden: not usable by user or serviceaccount, provider "machine-api-termination-handler": Forbidden: not usable by user or serviceaccount, provider "hostnetwork-v2": Forbidden: not usable by user or serviceaccount, provider "hostnetwork": Forbidden: not usable by user or serviceaccount, provider "hostaccess": Forbidden: not usable by user or serviceaccount, provider "trident-node-linux": Forbidden: not usable by user or serviceaccount, provider "node-exporter": Forbidden: not usable by user or serviceaccount, provider "privileged": Forbidden: not usable by user or serviceaccount]
+[root@prbhvspngprb central-monitoring]# oc get no --show-labels
+NAME                               STATUS   ROLES                  AGE   VERSION    LABELS
+prbhvspngprin1.arabbanking.local   Ready    infra                  84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprin1.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/infra=,node.openshift.io/os_id=rhcos
+prbhvspngprin2.arabbanking.local   Ready    infra                  84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprin2.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/infra=,node.openshift.io/os_id=rhcos
+prbhvspngprm1.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprm1.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=,node-role.kubernetes.io/master=,node.openshift.io/os_id=rhcos
+prbhvspngprm2.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprm2.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=,node-role.kubernetes.io/master=,node.openshift.io/os_id=rhcos
+prbhvspngprm3.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprm3.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=,node-role.kubernetes.io/master=,node.openshift.io/os_id=rhcos
+prbhvspngprw1.arabbanking.local    Ready    pngprd,worker          84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprw1.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/pngprd=,node-role.kubernetes.io/worker=,node.openshift.io/os_id=rhcos
+prbhvspngprw2.arabbanking.local    Ready    pngprd,worker          84d   v1.31.10   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=prbhvspngprw2.arabbanking.local,kubernetes.io/os=linux,node-role.kubernetes.io/pngprd=,node-role.kubernetes.io/worker=,node.openshift.io/os_id=rhcos
+[root@prbhvspngprb central-monitoring]#
+
