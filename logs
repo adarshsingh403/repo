@@ -1,0 +1,116 @@
+
+podman logs thanos-query -f
+ts=2026-09-23T06:24:31.360805003Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:24:36.361949154Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:24:41.362320949Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:24:46.362982653Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:24:51.364546237Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:24:56.365679773Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:01.366356641Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:06.366661631Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:11.367322752Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:16.368609601Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:21.369359534Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:26.370284435Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:31.371296941Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:36.372218796Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:41.37382985Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:46.374632433Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:51.375837064Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:25:56.376824453Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:26:01.377904672Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:26:06.378620208Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:26:11.379872048Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:26:16.380921594Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+ts=2026-09-23T06:26:21.381724935Z caller=endpointset.go:471 level=warn component=endpointset msg="update of endpoint failed" err="getting metadata: rpc error: code = DeadlineExceeded desc = latest balancer error: connection error: desc = \"transport: Error while dialing: dial tcp 10.150.200.16:30901: connect: connection refused\"" address=10.150.200.16:30901
+^C[root@prbhvspngprb ~]# podman ps
+CONTAINER ID  IMAGE                             COMMAND               CREATED       STATUS       PORTS       NAMES
+4c1f086a857f  quay.io/minio/minio:latest        server /data --co...  45 hours ago  Up 45 hours  9000/tcp    minio
+e12b064d1c1a  docker.io/grafana/grafana:latest                        44 hours ago  Up 44 hours  3000/tcp    grafana
+6448451c4834  quay.io/thanos/thanos:v0.36.1     store --data-dir=...  44 hours ago  Up 44 hours              thanos-store
+53b1cc7d7409  quay.io/thanos/thanos:v0.36.1     query --http-addr...  17 hours ago  Up 17 hours              thanos-query
+
+
+[root@prbhvspngprb ~]# oc logs kube-state-metrics-f8c797dff-bwqzg --tail 10
+E0923 06:30:00.587242       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587245       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587246       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587250       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587254       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587257       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587261       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587264       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587268       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:01.474975       1 reflector.go:227] "Failed to watch" err="failed to list *v1.EndpointSlice: endpointslices.discovery.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"endpointslices\" in API group \"discovery.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.EndpointSlice"
+[root@prbhvspngprb ~]# oc logs kube-state-metrics-f8c797dff-bwqzg --tail 20
+[root@prbhvspngprb ~]# oc logs kube-state-metrics-f8c797dff-bwqzg --tail 20
+E0923 06:30:00.587226       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587229       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587230       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587232       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587234       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587236       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587238       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587241       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587242       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587245       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54214: write: connection reset by peer"
+E0923 06:30:00.587246       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587250       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587254       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587257       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587261       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587264       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:00.587268       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.2.64:8080->10.128.2.2:54212: write: connection reset by peer"
+E0923 06:30:01.474975       1 reflector.go:227] "Failed to watch" err="failed to list *v1.EndpointSlice: endpointslices.discovery.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"endpointslices\" in API group \"discovery.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.EndpointSlice"
+E0923 06:30:05.045064       1 reflector.go:227] "Failed to watch" err="failed to list *v1.EndpointSlice: endpointslices.discovery.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"endpointslices\" in API group \"discovery.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.EndpointSlice"
+E0923 06:30:05.504580       1 reflector.go:227] "Failed to watch" err="failed to list *v1.MutatingAdmissionPolicy: mutatingadmissionpolicies.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"mutatingadmissionpolicies\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.MutatingAdmissionPolicy"
+[root@prbhvspngprb ~]# oc get po -o wide | egrep 10.128.2.64
+kube-state-metrics-f8c797dff-bwqzg   1/1     Running   0          16h   10.128.2.64      prbhvspngprin2.arabbanking.local   <none>           <none>
+[root@prbhvspngprb ~]# oc get po -o wide | egrep 10.128.2.2
+[root@prbhvspngprb ~]# oc get svc
+NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                                          AGE
+kube-state-metrics           ClusterIP   172.30.185.236   <none>        8080/TCP                                         16h
+node-exporter                ClusterIP   172.30.3.47      <none>        9101/TCP                                         16h
+prometheus-thanos            ClusterIP   172.30.35.132    <none>        9090/TCP,10901/TCP,10902/TCP                     16h
+prometheus-thanos-nodeport   NodePort    172.30.115.202   <none>        10901:30901/TCP,10902:30902/TCP,9090:30090/TCP   16h
+[root@prbhvspngprb ~]# oc get po
+NAME                                 READY   STATUS    RESTARTS   AGE
+kube-state-metrics-f8c797dff-bwqzg   1/1     Running   0          16h
+node-exporter-fhwxm                  1/1     Running   0          16h
+node-exporter-fsnzt                  1/1     Running   0          16h
+node-exporter-jcvkr                  1/1     Running   0          16h
+node-exporter-k4gwr                  1/1     Running   0          16h
+node-exporter-nbqvc                  1/1     Running   0          16h
+node-exporter-vrjcc                  1/1     Running   0          16h
+node-exporter-zk5fc                  1/1     Running   0          16h
+prometheus-thanos-75845b94f8-jwwgl   2/2     Running   0          16h
+[root@prbhvspngprb ~]# oc logs prometheus-thanos-75845b94f8-jwwgl --tail 2-
+error: invalid argument "2-" for "--tail" flag: strconv.ParseInt: parsing "2-": invalid syntax
+See 'oc logs --help' for usage.
+[root@prbhvspngprb ~]# oc logs prometheus-thanos-75845b94f8-jwwgl --tail 20
+Defaulted container "prometheus" out of: prometheus, thanos-sidecar
+ts=2026-09-22T17:00:04.621Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790085603561 maxt=1790092800000 ulid=01M350YVTB3AHBYZ0AP30MS6EF duration=321.734089ms ooo=false
+ts=2026-09-22T17:00:04.645Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=22.763191ms
+ts=2026-09-22T19:00:04.632Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790092803561 maxt=1790100000000 ulid=01M357TK2B27Z5VAN0RK32R7BX duration=333.013945ms ooo=false
+ts=2026-09-22T19:00:04.655Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=22.096949ms
+ts=2026-09-22T21:00:04.629Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790100003561 maxt=1790107200000 ulid=01M35EPAAB3CKVSHFKBGHGZ4GB duration=330.160519ms ooo=false
+ts=2026-09-22T21:00:04.652Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=22.137436ms
+ts=2026-09-22T21:00:04.653Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=0 to_segment=1 mint=1790107200000
+ts=2026-09-22T21:00:05.127Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=0 last=1 duration=474.294586ms
+ts=2026-09-22T23:00:04.629Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790107203561 maxt=1790114400000 ulid=01M35NJ1JBE17A8R9CBBKG8EKM duration=329.645015ms ooo=false
+ts=2026-09-22T23:00:04.653Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=22.85167ms
+ts=2026-09-23T01:00:04.630Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790114403561 maxt=1790121600000 ulid=01M35WDRTBKFSQTW28HF7B7J1Z duration=330.236085ms ooo=false
+ts=2026-09-23T01:00:04.654Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=23.052304ms
+ts=2026-09-23T01:00:04.655Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=2 to_segment=3 mint=1790121600000
+ts=2026-09-23T01:00:05.240Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=2 last=3 duration=585.831224ms
+ts=2026-09-23T03:00:04.636Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790121603561 maxt=1790128800000 ulid=01M3639G2BFX96FCKPXJ9X614S duration=336.974547ms ooo=false
+ts=2026-09-23T03:00:04.661Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=24.446505ms
+ts=2026-09-23T05:00:04.618Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790128803561 maxt=1790136000000 ulid=01M36A57ACCJFABBX2Q0PDGAZ8 duration=318.253806ms ooo=false
+ts=2026-09-23T05:00:04.641Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=21.881453ms
+ts=2026-09-23T05:00:04.642Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=4 to_segment=5 mint=1790136000000
+ts=2026-09-23T05:00:05.213Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=4 last=5 duration=571.101362ms
+[root@prbhvspngprb ~]#
+
+
+
+
