@@ -1,55 +1,79 @@
+Current State of Monitoring Stack
+
+Central Bastion server:>>>>>>>>>>>>>>>>>
+[root@prbhvspngprb central-monitoring]# ls -lrth
+total 32K
+drwxr-xr-x. 4 nobody nobody 4.0K Sep 21 10:27 minio
+drwxr-xr-x. 2 nobody nobody 4.0K Sep 21 10:27 thanos
+-rw-r-----. 1 nobody nobody  321 Sep 22 13:06 ds-ssc.yaml
+-rw-r-----. 1 nobody nobody  992 Sep 22 13:21 ds.yaml
+-rw-r-----. 1 nobody nobody  11K Sep 22 13:43 central-monitoring-kplusprod.yaml
+drwxrwxrwx. 7 nobody nobody 4.0K Sep 23 07:48 grafana
+[root@prbhvspngprb central-monitoring]#
+
+[root@prbhvspngprb ~]# oc get no -o wide
+NAME                               STATUS   ROLES                  AGE   VERSION    INTERNAL-IP      EXTERNAL-IP   OS-IMAGE                                                KERNEL-VERSION                 CONTAINER-RUNTIME
+prbhvspngprin1.arabbanking.local   Ready    infra                  84d   v1.31.10   10.150.195.133   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprin2.arabbanking.local   Ready    infra                  84d   v1.31.10   10.150.195.134   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprm1.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   10.150.195.128   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprm2.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   10.150.195.129   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprm3.arabbanking.local    Ready    control-plane,master   84d   v1.31.10   10.150.195.130   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprw1.arabbanking.local    Ready    pngprd,worker          84d   v1.31.10   10.150.195.131   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+prbhvspngprw2.arabbanking.local    Ready    pngprd,worker          84d   v1.31.10   10.150.195.132   <none>        Red Hat Enterprise Linux CoreOS 418.94.202507091512-0   5.14.0-427.76.1.el9_4.x86_64   cri-o://1.31.10-2.rhaos4.18.gitce48a32.el9
+[root@prbhvspngprb ~]# oc debug node/prbhvspngprw1.arabbanking.local
+Temporary namespace openshift-debug-slcvd is created for debugging node...
+Starting pod/prbhvspngprw1arabbankinglocal-debug-gd9l7 ...
+To use host binaries, run `chroot /host`
+Pod IP: 10.150.195.131
+If you don't see a command prompt, try pressing enter.
+sh-5.1# chroot /host
+sh-5.1# ss -tulnp | egrep 30902
+tcp   LISTEN 0      4096                *:30902            *:*    users:(("ovnkube",pid=4081,fd=28))
+sh-5.1# ss -tulnp | egrep 30901
+tcp   LISTEN 0      4096                *:30901            *:*    users:(("ovnkube",pid=4081,fd=20))
+sh-5.1# ss -tulnp | egrep 30903
+sh-5.1# ss -tulnp | egrep 3090
+tcp   LISTEN 0      4096                *:30901            *:*    users:(("ovnkube",pid=4081,fd=20))
+tcp   LISTEN 0      4096                *:30902            *:*    users:(("ovnkube",pid=4081,fd=28))
+sh-5.1# ss -tulnp | egrep 30090
+tcp   LISTEN 0      4096                *:30090            *:*    users:(("ovnkube",pid=4081,fd=31))
+timed out waiting for input: auto-logout
+sh-5.1#
+[root@prbhvspngprb ~]# podman ps
+CONTAINER ID  IMAGE                             COMMAND               CREATED       STATUS       PORTS       NAMES
+4c1f086a857f  quay.io/minio/minio:latest        server /data --co...  46 hours ago  Up 46 hours  9000/tcp    minio
+e12b064d1c1a  docker.io/grafana/grafana:latest                        45 hours ago  Up 45 hours  3000/tcp    grafana
+6448451c4834  quay.io/thanos/thanos:v0.36.1     store --data-dir=...  45 hours ago  Up 45 hours              thanos-store
+53b1cc7d7409  quay.io/thanos/thanos:v0.36.1     query --http-addr...  18 hours ago  Up 18 hours              thanos-query
+[root@prbhvspngprb ~]#
+
+ACM PROD:>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+root@prbahvsacmprodmg:~$ hostname -i
+10.150.162.12
 root@prbahvsacmprodmg:~$ oc get po
 NAME                                  READY   STATUS    RESTARTS   AGE
-kube-state-metrics-64f9f698fc-42w77   1/1     Running   0          16h
-node-exporter-6gr8c                   0/1     Pending   0          16h
-node-exporter-9c6g9                   1/1     Running   0          16h
-node-exporter-chw4t                   0/1     Pending   0          16h
-node-exporter-ldff7                   0/1     Pending   0          16h
-node-exporter-lrq7p                   0/1     Pending   0          16h
-node-exporter-v44p6                   1/1     Running   0          16h
-node-exporter-xjlk8                   0/1     Pending   0          16h
-prometheus-thanos-648f6bbcc4-l627q    2/2     Running   0          16h
-root@prbahvsacmprodmg:~$ oc get svc
-NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                                          AGE
-kube-state-metrics           ClusterIP   172.30.248.219   <none>        8080/TCP                                         16h
-node-exporter                ClusterIP   172.30.89.126    <none>        9101/TCP                                         16h
-prometheus-thanos            ClusterIP   172.30.122.226   <none>        9090/TCP,10901/TCP,10902/TCP                     16h
-prometheus-thanos-nodeport   NodePort    172.30.99.207    <none>        10901:30901/TCP,10902:30902/TCP,9090:30090/TCP   16h
-root@prbahvsacmprodmg:~$ oc logs kube-state-metrics-64f9f698fc-42w77 --tail 20
-E0923 06:39:32.786632       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786634       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786637       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786639       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786642       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786644       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786646       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786649       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786652       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786656       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786657       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786661       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786661       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786666       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786670       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786677       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47848: write: connection reset by peer"
-E0923 06:39:32.786666       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:32.786687       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:47850: write: connection reset by peer"
-E0923 06:39:34.056737       1 reflector.go:227] "Failed to watch" err="failed to list *v1.MutatingAdmissionPolicy: mutatingadmissionpolicies.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"mutatingadmissionpolicies\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.MutatingAdmissionPolicy"
-E0923 06:39:37.695070       1 reflector.go:227] "Failed to watch" err="failed to list *v1.ValidatingAdmissionPolicy: validatingadmissionpolicies.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"validatingadmissionpolicies\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.ValidatingAdmissionPolicy"
-root@prbahvsacmprodmg:~$ oc logs prometheus-thanos-648f6bbcc4-l627q --tail 20
+kube-state-metrics-64f9f698fc-42w77   1/1     Running   0          17h
+node-exporter-6gr8c                   0/1     Pending   0          18h
+node-exporter-9c6g9                   1/1     Running   0          18h
+node-exporter-chw4t                   0/1     Pending   0          18h
+node-exporter-ldff7                   0/1     Pending   0          18h
+node-exporter-lrq7p                   0/1     Pending   0          18h
+node-exporter-v44p6                   1/1     Running   0          18h
+node-exporter-xjlk8                   0/1     Pending   0          18h
+prometheus-thanos-648f6bbcc4-l627q    2/2     Running   0          18h
+root@prbahvsacmprodmg:~$ oc logs kube-state-metrics-64f9f698fc-42w77 --tail 10
+E0923 07:49:52.786579       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:56068: write: connection reset by peer"
+E0923 07:49:52.786587       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:56068: write: connection reset by peer"
+E0923 07:49:52.786595       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:56068: write: connection reset by peer"
+E0923 07:49:52.786607       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:56068: write: connection reset by peer"
+E0923 07:49:52.786615       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.131.0.30:8080->10.131.0.2:56068: write: connection reset by peer"
+E0923 07:49:53.382298       1 reflector.go:227] "Failed to watch" err="failed to list *v1.EndpointSlice: endpointslices.discovery.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"endpointslices\" in API group \"discovery.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.EndpointSlice"
+E0923 07:49:53.471500       1 reflector.go:227] "Failed to watch" err="failed to list *v1.MutatingAdmissionPolicyBinding: mutatingadmissionpolicybindings.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"mutatingadmissionpolicybindings\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.MutatingAdmissionPolicyBinding"
+E0923 07:49:54.329844       1 reflector.go:227] "Failed to watch" err="failed to list *v1.ValidatingAdmissionPolicyBinding: validatingadmissionpolicybindings.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"validatingadmissionpolicybindings\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.ValidatingAdmissionPolicyBinding"
+E0923 07:49:55.478515       1 reflector.go:227] "Failed to watch" err="failed to list *v1.ValidatingAdmissionPolicyBinding: validatingadmissionpolicybindings.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"validatingadmissionpolicybindings\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.ValidatingAdmissionPolicyBinding"
+E0923 07:49:58.017615       1 reflector.go:227] "Failed to watch" err="failed to list *v1.ValidatingAdmissionPolicyBinding: validatingadmissionpolicybindings.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"validatingadmissionpolicybindings\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.ValidatingAdmissionPolicyBinding"
+root@prbahvsacmprodmg:~$ oc logs prometheus-thanos-648f6bbcc4-l627q --tail 10
 Defaulted container "prometheus" out of: prometheus, thanos-sidecar
-ts=2026-09-22T17:00:04.938Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790085602963 maxt=1790092800000 ulid=01M350YW22X3NGVQVYQ8Z9DK4F duration=392.083524ms ooo=false
-ts=2026-09-22T17:00:04.969Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=30.111259ms
-ts=2026-09-22T19:00:04.923Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790092802963 maxt=1790100000000 ulid=01M357TKA1EZA3V77P72CMBQ1K duration=377.901048ms ooo=false
-ts=2026-09-22T19:00:04.954Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=29.104152ms
-ts=2026-09-22T21:00:04.924Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790100002963 maxt=1790107200000 ulid=01M35EPAJ1X6F8WPWNQGYHX6ES duration=378.952022ms ooo=false
-ts=2026-09-22T21:00:04.955Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=30.042097ms
-ts=2026-09-22T21:00:04.956Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=0 to_segment=1 mint=1790107200000
-ts=2026-09-22T21:00:05.493Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=0 last=1 duration=536.823128ms
-ts=2026-09-22T23:00:05.017Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790107202963 maxt=1790114400000 ulid=01M35NJ1T0WYYB54SCD169FSY8 duration=473.709786ms ooo=false
-ts=2026-09-22T23:00:05.065Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=45.353548ms
-ts=2026-09-23T01:00:04.939Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790114402963 maxt=1790121600000 ulid=01M35WDS1W1QFD2QX88AK3P7A1 duration=399.356858ms ooo=false
-ts=2026-09-23T01:00:04.984Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=43.303323ms
 ts=2026-09-23T01:00:04.985Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=2 to_segment=3 mint=1790121600000
 ts=2026-09-23T01:00:05.628Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=2 last=3 duration=643.846559ms
 ts=2026-09-23T03:00:05.189Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790121602963 maxt=1790128800000 ulid=01M3639GAFA6Q09D60B6XB64YK duration=630.104832ms ooo=false
@@ -58,4 +82,496 @@ ts=2026-09-23T05:00:05.067Z caller=compact.go:580 level=info component=tsdb msg=
 ts=2026-09-23T05:00:05.145Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=76.376625ms
 ts=2026-09-23T05:00:05.146Z caller=checkpoint.go:101 level=info component=tsdb msg="Creating checkpoint" from_segment=4 to_segment=5 mint=1790136000000
 ts=2026-09-23T05:00:05.793Z caller=head.go:1317 level=info component=tsdb msg="WAL checkpoint complete" first=4 last=5 duration=647.397655ms
+ts=2026-09-23T07:00:04.962Z caller=compact.go:580 level=info component=tsdb msg="write block" mint=1790136002963 maxt=1790143200000 ulid=01M36H0YT279G15GRY42F7VT0Q duration=416.475842ms ooo=false
+ts=2026-09-23T07:00:04.996Z caller=head.go:1355 level=info component=tsdb msg="Head GC completed" caller=truncateMemory duration=33.02604ms
 root@prbahvsacmprodmg:~$
+
+KplusProd:>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+root@prbahvskpftobprap:~$ oc get po
+NAME                                 READY   STATUS    RESTARTS   AGE
+kube-state-metrics-f8c797dff-f2pkh   1/1     Running   0          83s
+node-exporter-24hg5                  1/1     Running   0          82s
+node-exporter-4px2k                  1/1     Running   0          83s
+node-exporter-54dlv                  1/1     Running   0          82s
+node-exporter-78tx5                  1/1     Running   0          83s
+node-exporter-7rv5v                  1/1     Running   0          82s
+node-exporter-dgsb8                  1/1     Running   0          82s
+node-exporter-p5cmd                  1/1     Running   0          83s
+node-exporter-vgm54                  1/1     Running   0          82s
+node-exporter-zcvjd                  1/1     Running   0          82s
+prometheus-thanos-75845b94f8-c8hwl   2/2     Running   0          82s
+root@prbahvskpftobprap:~$ oc logs kube-state-metrics-f8c797dff-f2pkh --tail 10
+E0923 07:56:29.299312       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299318       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299324       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299332       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299337       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299342       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299347       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299351       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.299356       1 metrics_handler.go:266] "Failed to write metrics" err="failed to write help text: write tcp 10.128.5.228:8080->10.128.4.2:60210: write: connection reset by peer"
+E0923 07:56:29.621903       1 reflector.go:227] "Failed to watch" err="failed to list *v1.ValidatingAdmissionPolicy: validatingadmissionpolicies.admissionregistration.k8s.io is forbidden: User \"system:serviceaccount:central-monitoring:kube-state-metrics\" cannot list resource \"validatingadmissionpolicies\" in API group \"admissionregistration.k8s.io\" at the cluster scope" logger="UnhandledError" reflector="/builddir/build/BUILD/kube-state-metrics-2.20.0-build/kube-state-metrics-2.20.0/internal/store/builder.go:725" type="*v1.ValidatingAdmissionPolicy"
+root@prbahvskpftobprap:~$ oc logs prometheus-thanos-75845b94f8-c8hwl --tail 10
+Defaulted container "prometheus" out of: prometheus, thanos-sidecar
+ts=2026-09-23T07:55:21.485Z caller=head.go:830 level=info component=tsdb msg="WAL replay completed" checkpoint_replay_duration=19.453µs wal_replay_duration=230.281µs wbl_replay_duration=178ns chunk_snapshot_load_duration=0s mmap_chunk_replay_duration=1.469µs total_replay_duration=297.72µs
+ts=2026-09-23T07:55:21.486Z caller=main.go:1181 level=info fs_type=XFS_SUPER_MAGIC
+ts=2026-09-23T07:55:21.486Z caller=main.go:1184 level=info msg="TSDB started"
+ts=2026-09-23T07:55:21.486Z caller=main.go:1367 level=info msg="Loading configuration file" filename=/etc/prometheus/prometheus.yml
+ts=2026-09-23T07:55:21.487Z caller=kubernetes.go:331 level=info component="discovery manager scrape" discovery=kubernetes config=node-exporter msg="Using pod service account via in-cluster config"
+ts=2026-09-23T07:55:21.487Z caller=kubernetes.go:331 level=info component="discovery manager scrape" discovery=kubernetes config=kubelet msg="Using pod service account via in-cluster config"
+ts=2026-09-23T07:55:21.487Z caller=main.go:1404 level=info msg="updated GOGC" old=100 new=75
+ts=2026-09-23T07:55:21.487Z caller=main.go:1415 level=info msg="Completed loading of configuration file" filename=/etc/prometheus/prometheus.yml totalDuration=1.34396ms db_storage=1.186µs remote_storage=1.909µs web_handler=445ns query_engine=5.699µs scrape=185.87µs scrape_sd=765.907µs notify=963ns notify_sd=950ns rules=1.446µs tracing=2.94µs
+ts=2026-09-23T07:55:21.487Z caller=main.go:1145 level=info msg="Server is ready to receive web requests."
+ts=2026-09-23T07:55:21.487Z caller=manager.go:164 level=info component="rule manager" msg="Starting rule manager..."
+root@prbahvskpftobprap:~$
+
+
+Deployed by using below yaml in all environment by just changing the name of "cluster:" value with cluster name.
+
+root@prbahvskpftobprap:~$ cat monititing.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: central-monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-state-metrics
+  namespace: central-monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: central-monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: central-monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: thanos-objstore-config
+  namespace: central-monitoring
+type: Opaque
+stringData:
+  objstore.yml: |
+    type: S3
+    config:
+      bucket: thanos-metrics
+      endpoint: 10.150.195.135:9000
+      insecure: true
+      access_key: minioadmin
+      secret_key: ABC@BANK2026
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: central-monitoring-kube-state-metrics
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+      - nodes
+      - pods
+      - services
+      - resourcequotas
+      - replicationcontrollers
+      - limitranges
+      - persistentvolumeclaims
+      - persistentvolumes
+      - namespaces
+      - endpoints
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - statefulsets
+      - daemonsets
+      - deployments
+      - replicasets
+    verbs: ["list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
+    verbs: ["list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["list", "watch"]
+  - apiGroups: ["policy"]
+    resources:
+      - poddisruptionbudgets
+    verbs: ["list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+      - volumeattachments
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs: ["list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources:
+      - leases
+    verbs: ["list", "watch"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources:
+      - certificatesigningrequests
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: central-monitoring-kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: central-monitoring-kube-state-metrics
+subjects:
+  - kind: ServiceAccount
+    name: kube-state-metrics
+    namespace: central-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: central-monitoring-prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - namespaces
+      - nodes/proxy
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: central-monitoring-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: central-monitoring-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: central-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: central-monitoring-node-exporter-scc
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged
+subjects:
+  - kind: ServiceAccount
+    name: node-exporter
+    namespace: central-monitoring
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: central-monitoring
+  labels:
+    app: kube-state-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app: kube-state-metrics
+    spec:
+      serviceAccountName: kube-state-metrics
+      containers:
+        - name: kube-state-metrics
+          image: quay.io/hummingbird/kube-state-metrics
+          args:
+            - --port=8080
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http-metrics
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http-metrics
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: central-monitoring
+  labels:
+    app: kube-state-metrics
+spec:
+  selector:
+    app: kube-state-metrics
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: http-metrics
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: central-monitoring
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      serviceAccountName: node-exporter
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.8.2
+          args:
+            - --path.rootfs=/host
+            - --web.listen-address=:9101
+          ports:
+            - name: metrics
+              containerPort: 9101
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: root
+              mountPath: /host
+              readOnly: true
+              mountPropagation: HostToContainer
+      volumes:
+        - name: root
+          hostPath:
+            path: /
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: central-monitoring
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    app: node-exporter
+  ports:
+    - name: metrics
+      port: 9101
+      targetPort: 9101
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: central-monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+      external_labels:
+        cluster: kplusprod
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets:
+              - kube-state-metrics.central-monitoring.svc:8080
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - central-monitoring
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: node-exporter
+            action: keep
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            regex: metrics
+            action: keep
+      - job_name: 'kubelet'
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - target_label: address
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+      - job_name: 'cadvisor'
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - target_label: address
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-thanos
+  namespace: central-monitoring
+  labels:
+    app: prometheus-thanos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-thanos
+  template:
+    metadata:
+      labels:
+        app: prometheus-thanos
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prometheus
+          image: quay.io/prometheus/prometheus:v2.54.1
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus/data
+            - --storage.tsdb.min-block-duration=2h
+            - --storage.tsdb.max-block-duration=2h
+            - --web.enable-lifecycle
+          ports:
+            - name: http
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+        - name: thanos-sidecar
+          image: quay.io/thanos/thanos:v0.36.1
+          args:
+            - sidecar
+            - --tsdb.path=/prometheus/data
+            - --prometheus.url=http://localhost:9090
+            - --objstore.config-file=/etc/thanos/objstore.yml
+            - --grpc-address=0.0.0.0:10901
+            - --http-address=0.0.0.0:10902
+          ports:
+            - name: grpc
+              containerPort: 10901
+            - name: http-sidecar
+              containerPort: 10902
+          volumeMounts:
+            - name: data
+              mountPath: /prometheus
+            - name: objstore-config
+              mountPath: /etc/thanos
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: objstore-config
+          secret:
+            secretName: thanos-objstore-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-thanos
+  namespace: central-monitoring
+  labels:
+    app: prometheus-thanos
+spec:
+  selector:
+    app: prometheus-thanos
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+    - name: http-sidecar
+      port: 10902
+      targetPort: http-sidecar
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-thanos-nodeport
+  namespace: central-monitoring
+spec:
+  type: NodePort
+  selector:
+    app: prometheus-thanos
+  ports:
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+      nodePort: 30901
+    - name: http-sidecar
+      port: 10902
+      targetPort: http-sidecar
+      nodePort: 30902
+    - name: http
+      port: 9090
+      targetPort: http
+      nodePort: 30090
+root@prbahvskpftobprap:~$
+
+
+Note: No any Network restriction by network team they said. 
